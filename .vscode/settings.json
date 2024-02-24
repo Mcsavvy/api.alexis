@@ -1,0 +1,27 @@
+{
+    "mypy.dmypyExecutable": "dmypy",
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 10000,
+    "python.testing.pytestEnabled": true,
+    "terminal.integrated.enablePersistentSessions": false,
+    "[python]": {
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.formatOnType": true,
+        "editor.wordBasedSuggestions": "off",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll.ruff": "explicit"
+        },
+    },
+    "ruff.importStrategy": "fromEnvironment",
+    "ruff.organizeImports": true,
+    "ruff.lint.run": "onType",
+    "python.analysis.inlayHints.callArgumentNames": "off",
+    "python.analysis.inlayHints.functionReturnTypes": false,
+    "python.analysis.useLibraryCodeForTypes": true,
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.inlayHints.variableTypes": false,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "editor.fontLigatures": true,
+}

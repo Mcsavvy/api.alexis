@@ -1,0 +1,11 @@
+__pycache__
+
+# Ignore dynaconf secret files
+.secrets.*
+
+# Ignore env files
+.env
+.env.*
+
+# ignore temporary test files
+/test_*

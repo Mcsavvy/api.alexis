@@ -1,0 +1,18 @@
+[default]
+
+# Server
+ROUTERS = [
+    "alexis.auth.views:router",
+    "alexis.chat.views:router",
+]
+
+# Logging
+LOG_LEVEL = "INFO"
+LOG_SHOW_TIME = false
+LOG_HANDLER_CLASS = "rich.logging.RichHandler"
+
+[dev]
+
+[test]
+
+[prod]

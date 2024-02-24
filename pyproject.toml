@@ -1,0 +1,63 @@
+[tool.poetry]
+name = "alexis"
+version = "0.1.0"
+description = "Alexis: The ALX learner's copilot"
+authors = ["David Mcsavvy <davemcsavvii@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-dotenv = "^1.0.1"
+uvicorn = {extras = ["standard"], version = "^0.27.1"}
+fastapi = "^0.109.2"
+langserve = {extras = ["server"], version = "^0.0.42"}
+langchain = "^0.1.9"
+langchain-community = "^0.0.22"
+langchainhub = "^0.1.14"
+langchain-openai = "^0.0.7"
+dynaconf = "^3.2.4"
+ipython = "^8.22.1"
+rich = "^13.7.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.8.0"
+ipython = "^8.22.0"
+ruff = "^0.1.13"
+black = "^23.12.1"
+isort = "^5.13.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 80
+indent-width = 4
+target-version = "py310"
+exclude = [
+    ".git",
+    "__pycache__",
+    "migrations",
+    ".venv",
+    ".vscode",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".pytest_cache",
+]
+
+
+[tool.ruff.lint]
+select = [
+    "E", "C", "I", "W", "F", "D",
+    "N", "UP",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]

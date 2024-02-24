@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Load the virtual environment
+
+ENV={$1:-dev}
+
+if [ -z $ENV ]; then
+    echo "Usage: loadenv [env] [env_file]" 1>&2
+    return 1
+fi
+
+if [ -f .env.$ENV ]; then
+    ENV_FILE=.env.$ENV
+else
+    if [ -z $2 ]; then
+        ENV_FILE=.env
+    else
+        ENV_FILE=$2
+    fi
+fi
+
+VENV_PATH=$(poetry env info -p)
+if [ -z $VENV_PATH ]; then
+    if [ -d ".venv" ]; then
+        VENV_PATH=.venv
+    else
+        echo "No virtual environment found." 1>&2
+        return 1
+    fi
+else
+    if [ ! -d "$VENV_PATH" ]; then
+        echo "No virtual environment found at $VENV_PATH." 1>&2
+        return 1
+    fi
+fi
+
+function loadenv {
+    if [ -f $ENV_FILE ]; then
+        if [ -s $ENV_FILE ]; then
+            export $(grep -v '^#' $ENV_FILE | xargs -d '\n')
+        fi
+        echo "$ENV_FILE loaded."
+    else
+        echo "No env file found." 1>&2
+    fi
+}
+
+if [ "$VIRTUAL_ENV" = "$VENV_PATH" ]; then
+    echo "$(basename $VENV_PATH) is already active."
+else
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "deactivating $(basename $VIRTUAL_ENV)."
+        deactivate
+    fi
+    echo "activating $(basename $VENV_PATH)."
+    source $VENV_PATH/bin/activate
+fi
+
+loadenv
+unset VENV_PATH ENV_FILE ENV loadenv
