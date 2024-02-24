@@ -9,3 +9,8 @@ __pycache__
 
 # ignore temporary test files
 /test_*
+
+# Ignore schema and data files
+project_schema.json
+project.json
+project.md
