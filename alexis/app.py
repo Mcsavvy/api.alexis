@@ -3,6 +3,9 @@
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
+from fastapi.responses import RedirectResponse
+from langchain_core.runnables.base import Runnable
+from langserve import add_routes  # type: ignore[import-untyped]
 
 from alexis import logging
 from alexis.config import settings
@@ -25,7 +28,6 @@ class AlexisApp(FastAPI):
         kwargs.setdefault("description", description)
         kwargs.setdefault("version", version)
         super().__init__(**kwargs)
-        self._load_routes()
 
     def _load_routes(self):
         """Load the routes."""
@@ -34,11 +36,27 @@ class AlexisApp(FastAPI):
             r = load_entry_point(router, APIRouter)
             self.include_router(r)
 
+    def _load_chains(self):
+        """Load the chains."""
+        for name, chain in self.settings.CHAINS:
+            logging.debug(f"Loading chain: {name}")
+            c = load_entry_point(chain, Runnable)
+            add_routes(self, c, path=f"/{name}")
+
     def __repr__(self):
         """Get the string representation of the Alexis App."""
         return f"<AlexisApp[{self.settings.env}]: {self.title} v{self.version}>"
 
 
+async def redirect_root_to_docs():
+    """Redirects the root URL to the /docs URL."""
+    return RedirectResponse("/docs")
+
+
 def create_app() -> AlexisApp:
     """Create the Alexis App."""
-    return AlexisApp()
+    app = AlexisApp()
+    app.add_api_route("/", redirect_root_to_docs)
+    app._load_routes()
+    app._load_chains()
+    return app

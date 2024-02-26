@@ -5,6 +5,9 @@ ROUTERS = [
     "alexis.auth.views:router",
     "alexis.chat.views:router",
 ]
+CHAINS = [
+    ["alexis", "alexis.chains.main:chain"]
+]
 
 # Logging
 LOG_LEVEL = "INFO"
