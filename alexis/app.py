@@ -53,6 +53,18 @@ class AlexisApp(FastAPI):
             c = load_entry_point(chain, Runnable)
             add_routes(self, c, path=f"/{name}")
 
+    def _enable_cors(self):
+        """Enable CORS."""
+        from fastapi.middleware.cors import CORSMiddleware
+
+        self.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.get("CORS_ALLOWED_ORIGINS", []),
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
     def __repr__(self):
         """Get the string representation of the Alexis App."""
         return f"<AlexisApp[{self.settings.env}]: {self.title} v{self.version}>"
@@ -69,4 +81,5 @@ def create_app() -> AlexisApp:
     app.add_api_route("/", redirect_root_to_docs)
     app._load_routes()
     app._load_chains()
+    app._enable_cors()
     return app
