@@ -20,8 +20,8 @@ LOG_LEVEL = "INFO"
 LOG_SHOW_TIME = false
 LOG_HANDLER_CLASS = "rich.logging.RichHandler"
 
-[dev]
+[development]
 
-[test]
+[testing]
 
-[prod]
+[production]
