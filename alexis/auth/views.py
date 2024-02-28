@@ -45,7 +45,7 @@ async def authenticate(data: CreateUserSchema) -> AuthTokenSchema:
         if user:
             return AuthTokenSchema(token=user.create_token())
     try:
-        user = User.create(session, **data.model_dump())
+        user = User.create(**data.model_dump())
     except User.CreateError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return AuthTokenSchema(token=user.create_token())  # type: ignore[union-attr]

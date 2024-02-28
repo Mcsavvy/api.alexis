@@ -3,7 +3,6 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
 
 from alexis.auth.models import User
 from alexis.components import db
@@ -27,11 +26,9 @@ def get_token(creds: HTTPAuthorizationCredentials = Depends(security)) -> str:
     return creds.credentials
 
 
-def is_authenticated(
-    session: Session = Depends(get_session), token: str = Depends(get_token)
-) -> "User":
+def is_authenticated(token: str = Depends(get_token)) -> "User":
     """Check if user is authenticated."""
-    user = User.get_by_token(session, token)
+    user = User.get_by_token(token)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"

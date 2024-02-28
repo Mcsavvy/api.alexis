@@ -2,10 +2,10 @@
 
 import jwt
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 from typing_extensions import Self
 
-from alexis.components.database import BaseModel
+from alexis.components.database import BaseModel, session
 
 
 class User(BaseModel):
@@ -35,11 +35,11 @@ class User(BaseModel):
         return f"<User[{self.uid[:8]}]: {self.name}>"
 
     @classmethod
-    def create(cls, session: Session, commit=True, **kwargs):
+    def create(cls, commit=True, **kwargs):
         """Create a user."""
         if session.query(cls).filter(cls.email == kwargs["email"]).first():
             raise cls.CreateError("Email is taken.")
-        return super().create(session, commit, **kwargs)
+        return super().create(commit, **kwargs)
 
     def create_token(self) -> str:
         """Create a token for the user."""
@@ -55,11 +55,11 @@ class User(BaseModel):
         return jwt.decode(token, "secret", algorithms=["HS256"])
 
     @classmethod
-    def get_by_token(cls, session: Session, token: str) -> Self | None:
+    def get_by_token(cls, token: str) -> Self | None:
         """Get a user by a token."""
         data = cls.decode_token(token)
         try:
-            user = cls.get(session, data["sub"])
+            user = cls.get(data["sub"])
         except cls.DoesNotExist:
             user = (
                 session.query(cls).filter(cls.kinde_user == data["sub"]).first()

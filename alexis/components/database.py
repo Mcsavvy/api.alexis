@@ -142,30 +142,30 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
         )
 
     @classmethod
-    def create(cls, session: Session, commit=True, **kwargs):
+    def create(cls, commit=True, **kwargs):
         """Creates model."""
         logging.debug("Creating %s with attributes: %s", cls.__name__, kwargs)
         instance = cls(**kwargs)
         if commit:
-            instance.save(session)  # pragma: no cover
+            instance.save()  # pragma: no cover
         return instance
 
-    def update(self, session: Session, commit=True, **kwargs):
+    def update(self, commit=True, **kwargs):
         """Updates model."""
         logging.debug("Updating %s with attributes: %s", self, kwargs)
         for attr, value in kwargs.items():
             setattr(self, attr, value)
         if commit:
-            self.save(session)  # pragma: no cover
+            self.save()  # pragma: no cover
         return self
 
-    def save(self, session: Session):
+    def save(self):
         """Saves model."""
         logging.debug(f"Saving {self.__class__.__name__}...")
         session.add(self)
         session.commit()
 
-    def delete(self, session: Session, commit=True):
+    def delete(self, commit=True):
         """Deletes model."""
         logging.debug(f"Deleting {self}...")
         session.delete(self)
@@ -173,7 +173,7 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
             session.commit()
 
     @classmethod
-    def get(cls, session: Session, id: UUID) -> Self | None:
+    def get(cls, id: UUID) -> Self | None:
         """Get model by id."""
         logging.debug(f"Getting {cls.__name__} with id: {id}")
         if isinstance(id, str):
