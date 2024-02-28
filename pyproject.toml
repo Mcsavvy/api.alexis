@@ -19,6 +19,8 @@ langchain-openai = "^0.0.7"
 dynaconf = "^3.2.4"
 ipython = "^8.22.1"
 rich = "^13.7.0"
+sqlalchemy = "^2.0.27"
+pyjwt = "^2.8.0"
 
 
 [tool.poetry.group.dev.dependencies]
