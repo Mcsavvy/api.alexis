@@ -14,3 +14,6 @@ __pycache__
 project_schema.json
 project.json
 project.md
+
+# Ignore database files
+*.sqlite[3]
