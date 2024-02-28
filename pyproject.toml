@@ -6,6 +6,9 @@ authors = ["David Mcsavvy <davemcsavvii@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
+[tool.poetry.scripts]
+alexcli = "alexis.components.cli:cli"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 python-dotenv = "^1.0.1"
