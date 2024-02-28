@@ -27,7 +27,17 @@ class AlexisApp(FastAPI):
         kwargs.setdefault("title", title)
         kwargs.setdefault("description", description)
         kwargs.setdefault("version", version)
+        kwargs["dependencies"] = (
+            kwargs.get("dependencies", []) + self._get_global_dependencies()
+        )
         super().__init__(**kwargs)
+
+    def _get_global_dependencies(self):
+        """Get the global dependencies."""
+        return [
+            load_entry_point(dep)
+            for dep in self.settings.get("DEPENDENCIES", [])
+        ]
 
     def _load_routes(self):
         """Load the routes."""

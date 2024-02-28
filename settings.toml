@@ -8,6 +8,9 @@ ROUTERS = [
 CHAINS = [
     ["alexis", "alexis.chains.main:chain"]
 ]
+DEPENDENCIES = [
+    "alexis.dependencies:session_dependency",
+]
 
 # Logging
 LOG_LEVEL = "INFO"
