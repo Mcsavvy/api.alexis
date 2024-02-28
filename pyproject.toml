@@ -24,6 +24,7 @@ ipython = "^8.22.1"
 rich = "^13.7.0"
 sqlalchemy = "^2.0.27"
 pyjwt = "^2.8.0"
+redis = {extras = ["hiredis"], version = "^5.0.2"}
 
 
 [tool.poetry.group.dev.dependencies]
