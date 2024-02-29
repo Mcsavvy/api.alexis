@@ -6,9 +6,8 @@ ROUTERS = [
     "alexis.chat.views:router",
 ]
 CHAINS = [
-    ["alexis", "alexis.chains.main:chain"]
+    ["alexis", "alexis.chains.chains:AlexisChain"]
 ]
-DEPENDENCIES = [
 MIDDLEWARES = [
     "alexis.components.database:SessionMiddleware",
 ]
