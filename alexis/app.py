@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
+from fastapi.applications import BaseHTTPMiddleware
 from fastapi.responses import RedirectResponse
 from langchain_core.runnables.base import Runnable
 from langserve import add_routes  # type: ignore[import-untyped]
@@ -38,6 +39,13 @@ class AlexisApp(FastAPI):
             load_entry_point(dep)
             for dep in self.settings.get("DEPENDENCIES", [])
         ]
+
+    def _load_middlewares(self):
+        """Get the middlewares."""
+        for middleware in self.settings.get("MIDDLEWARES", []):
+            logging.debug(f"Loading middleware: '{middleware}'")
+            m = load_entry_point(middleware)
+            self.add_middleware(BaseHTTPMiddleware, dispatch=m)
 
     def _load_routes(self):
         """Load the routes."""
@@ -82,4 +90,5 @@ def create_app() -> AlexisApp:
     app._load_routes()
     app._load_chains()
     app._enable_cors()
+    app._load_middlewares()
     return app

@@ -9,7 +9,8 @@ CHAINS = [
     ["alexis", "alexis.chains.main:chain"]
 ]
 DEPENDENCIES = [
-    "alexis.dependencies:session_dependency",
+MIDDLEWARES = [
+    "alexis.components.database:SessionMiddleware",
 ]
 
 # CORS
