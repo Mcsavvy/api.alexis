@@ -5,7 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from alexis.components import is_authenticated, redis, session
+from alexis.components import redis, session
+from alexis.components.auth import is_authenticated
 from alexis.models import Thread, User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
