@@ -5,7 +5,6 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI
 from fastapi.applications import BaseHTTPMiddleware
 from fastapi.responses import RedirectResponse
-from langchain_core.runnables.base import Runnable
 from langserve import add_routes  # type: ignore[import-untyped]
 
 from alexis import logging
@@ -64,10 +63,16 @@ class AlexisApp(FastAPI):
 
     def _load_chains(self):
         """Load the chains."""
-        for name, chain in self.settings.CHAINS:
-            logging.debug(f"Loading chain: {name}")
-            c = load_entry_point(chain, Runnable)
-            add_routes(self, c, path=f"/{name}")
+        from alexis.chat.chains import AlexisChain, ContextInput, user_injection
+
+        add_routes(
+            self,
+            AlexisChain,
+            path="/alexis",
+            input_type=ContextInput,
+            output_type=str,
+            per_req_config_modifier=user_injection,
+        )
 
     def _enable_cors(self):
         """Enable CORS."""
