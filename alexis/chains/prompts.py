@@ -16,7 +16,7 @@ assert PROJECT_PROMPT.exists(), "project prompt does not exist"
 assert TASK_PROMPT.exists(), "task prompt does not exist"
 
 
-project_prompt = ChatPromptTemplate.from_messages(
+ProjectPrompt = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(PROJECT_PROMPT.read_text()),
         MessagesPlaceholder("history"),
@@ -24,10 +24,14 @@ project_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-task_prompt = ChatPromptTemplate.from_messages(
+ProjectPrompt.name = "ProjectPrompt"
+
+TaskPrompt = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate.from_template(TASK_PROMPT.read_text()),
         MessagesPlaceholder("history"),
         HumanMessagePromptTemplate.from_template("{query}"),
     ]
 )
+
+TaskPrompt.name = "TaskPrompt"
