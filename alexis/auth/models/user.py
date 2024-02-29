@@ -1,23 +1,28 @@
 """User model."""
+from __future__ import annotations
 
 import jwt
 from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing_extensions import Self
 
+from alexis.chat.models import Thread, ThreadMixin
 from alexis.components.database import BaseModel, session
 
 
-class User(BaseModel):
+class User(BaseModel, ThreadMixin):
     """User model."""
-
-    __tablename__ = "users"
 
     kinde_user: Mapped[str] = mapped_column(String(50), nullable=False)
     first_name: Mapped[str] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str] = mapped_column(String(255), nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
     picture: Mapped[str] = mapped_column(String(255), nullable=True)
+    threads: Mapped[list[Thread]] = relationship(  # type: ignore[assignment]
+        back_populates="user",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
 
     @property
     def name(self) -> str:
@@ -58,6 +63,7 @@ class User(BaseModel):
     def get_by_token(cls, token: str) -> Self | None:
         """Get a user by a token."""
         data = cls.decode_token(token)
+        user: Self | None = None
         try:
             user = cls.get(data["sub"])
         except cls.DoesNotExist:
