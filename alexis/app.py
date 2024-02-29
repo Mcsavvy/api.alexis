@@ -45,7 +45,15 @@ class AlexisApp(FastAPI):
         for middleware in self.settings.get("MIDDLEWARES", []):
             logging.debug(f"Loading middleware: '{middleware}'")
             m = load_entry_point(middleware)
-            self.add_middleware(BaseHTTPMiddleware, dispatch=m)
+            # prevent adding the same middleware twice
+            for _m in self.user_middleware:
+                if (
+                    isinstance(_m, BaseHTTPMiddleware)
+                    and _m.kwargs["dispatch"] == m
+                ):
+                    break
+            else:
+                self.add_middleware(BaseHTTPMiddleware, dispatch=m)
 
     def _load_routes(self):
         """Load the routes."""
