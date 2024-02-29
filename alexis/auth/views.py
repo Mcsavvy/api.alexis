@@ -1,13 +1,11 @@
 """Auth Views."""
 
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from alexis.auth.models import User
 from alexis.components import session
-from alexis.dependencies import is_authenticated
+from alexis.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -49,4 +47,3 @@ async def authenticate(data: CreateUserSchema) -> AuthTokenSchema:
     except User.CreateError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return AuthTokenSchema(token=user.create_token())  # type: ignore[union-attr]
-
