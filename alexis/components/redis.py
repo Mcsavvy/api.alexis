@@ -27,7 +27,7 @@ def project_exists(project: str, tasks: list[str]):
     return project_exists, task_exists
 
 
-def get_project(project_id: str) -> Project | None:
+def get_project(project_id: str, include_tasks: bool=True) -> Project | None:
     """Get project."""
     project_key = f"project:{project_id}"
     project = cast(dict, client.hgetall(project_key))
@@ -36,14 +36,15 @@ def get_project(project_id: str) -> Project | None:
     tasks = project.pop(b"tasks").split(b",")
     project["tasks"] = []
     project["id"] = project_id
-    for task_id in tasks:
-        task_key = f"{project_key}:task:{task_id.decode()}"
-        task = cast(dict, client.hgetall(task_key))
-        task["id"] = d(task_id)
-        del task[b"project"]
-        project["tasks"].append(
-            {d(key): d(value) for key, value in task.items()}
-        )
+    if include_tasks:
+        for task_id in tasks:
+            task_key = f"{project_key}:task:{task_id.decode()}"
+            task = cast(dict, client.hgetall(task_key))
+            task["id"] = d(task_id)
+            del task[b"project"]
+            project["tasks"].append(
+                {d(key): d(value) for key, value in task.items()}
+            )
     project = {d(key): d(value) for key, value in project.items()}
     return Project(**project)
 
