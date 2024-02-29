@@ -1,6 +1,9 @@
 """Alexis data models."""
 from pydantic import BaseModel, Field
 
+from alexis.auth.models import User  # noqa: F401
+from alexis.chat.models import Chat, ChatType, Thread  # noqa: F401
+
 
 class Task(BaseModel):
     """Task model."""
