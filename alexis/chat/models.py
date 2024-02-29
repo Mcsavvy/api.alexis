@@ -35,7 +35,9 @@ class Chat(BaseModel):
     content: Mapped[str] = mapped_column(Text)
     cost: Mapped[int] = mapped_column(default=0)
     chat_type: Mapped[ChatType] = mapped_column(Enum(ChatType))
-    thread_id: Mapped[UUID] = mapped_column(ForeignKey("thread.id"))
+    thread_id: Mapped[UUID] = mapped_column(
+        ForeignKey("thread.id"), nullable=False
+    )
     previous_chat_id: Mapped[UUID | None] = mapped_column(ForeignKey("chat.id"))
     previous_chat: Mapped[Chat | None] = relationship(  # type: ignore[assignment]
         remote_side=[id],
@@ -80,6 +82,9 @@ class Chat(BaseModel):
 class Thread(BaseModel):  # type: ignore
     """A conversation thread."""
 
+    id: Mapped[UUID] = mapped_column(
+        primary_key=True, default=uuid4, nullable=False
+    )
     title: Mapped[str] = mapped_column(String(80))
     project: Mapped[int] = mapped_column(nullable=False)
     chats: Mapped[list[Chat]] = relationship(  # type: ignore[assignment]

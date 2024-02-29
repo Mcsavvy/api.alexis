@@ -105,7 +105,9 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
     __abstract__ = True
     __table_args__ = {"mysql_charset": "utf8mb4"}
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(
+        primary_key=True, default=uuid4, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         default=utcnow, onupdate=utcnow, nullable=False
