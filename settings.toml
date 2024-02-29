@@ -5,9 +5,7 @@ ROUTERS = [
     "alexis.auth.views:router",
     "alexis.chat.views:router",
 ]
-CHAINS = [
-    ["alexis", "alexis.chains.chains:AlexisChain"]
-]
+
 MIDDLEWARES = [
     "alexis.components.database:SessionMiddleware",
 ]
@@ -16,12 +14,16 @@ MIDDLEWARES = [
 CORS_ALLOWED_ORIGINS = ["*"]
 
 # Logging
-LOG_LEVEL = "INFO"
-LOG_SHOW_TIME = false
 LOG_HANDLER_CLASS = "rich.logging.RichHandler"
 
 [development]
+LOG_LEVEL = "DEBUG"
+LOG_SHOW_TIME = true
 
 [testing]
+LOG_LEVEL = "DEBUG"
+LOG_SHOW_TIME = true
 
 [production]
+LOG_LEVEL = "INFO"
+LOG_SHOW_TIME = false
