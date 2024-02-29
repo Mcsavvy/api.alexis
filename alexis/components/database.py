@@ -1,10 +1,12 @@
 """Database component for Alexis."""
 
+from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from fastapi import Depends, Request, Response
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
@@ -22,9 +24,7 @@ from alexis.utils import LocalProxy
 
 Base: type[DeclarativeBase] = declarative_base()
 _session_ctx = ContextVar[Session]("session")
-session: Session = LocalProxy(  # type: ignore[assignment,misc]
-    _session_ctx, "Working outside of session context."
-)
+__contexts__: list[Session] = []
 
 
 class SQLAlchemy:
@@ -38,19 +38,26 @@ class SQLAlchemy:
         )
 
     @contextmanager
-    def session(self):
+    def scoped_session(self):
         """Get a new SQLAlchemy session."""
         session = self._session()
-        token = _session_ctx.set(session)
         try:
             yield session
         finally:
-            _session_ctx.reset(token)
             session.close()
+
+    def get_or_create_session(self) -> tuple[Session, bool]:
+        """Get or create a new session."""
+        if __contexts__:
+            session = __contexts__[-1]
+            return session, False
+        session = self._session()
+        __contexts__.append(session)
+        return session, True
 
     def execute(self, function, *args, **kwargs):
         """Execute a function using a new session and handle transactions."""
-        with self.session() as db:
+        with self.scoped_session() as db:
             try:
                 result = function(db, *args, **kwargs)
                 db.commit()
@@ -173,7 +180,7 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
             session.commit()
 
     @classmethod
-    def get(cls, id: UUID) -> Self | None:
+    def get(cls, id: UUID | str, throw=True) -> Self:
         """Get model by id."""
         logging.debug(f"Getting {cls.__name__} with id: {id}")
         if isinstance(id, str):
@@ -187,3 +194,41 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
 
 
 db = SQLAlchemy(settings.SQLALCHEMY_DATABASE_URI)
+
+
+def get_session():
+    """SQLAlchemy session dependency."""
+    session, created = db.get_or_create_session()
+    token = _session_ctx.set(session)
+    try:
+        yield session
+    finally:
+        if created:
+            __contexts__.remove(session)
+        _session_ctx.reset(token)
+        session.close()
+
+
+async def SessionMiddleware(  # noqa: N802
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Session middleware."""
+    logging.debug("Loading session middleware...")
+    logging.debug("Creating session...")
+    session, created = db.get_or_create_session()
+    token = _session_ctx.set(session)
+    response = await call_next(request)
+    logging.debug("Closing session...")
+    if created:
+        __contexts__.remove(session)
+    _session_ctx.reset(token)
+    session.close()
+    return response
+
+
+SessionDependency = Depends(get_session)
+session: Session = LocalProxy(  # type: ignore[assignment,misc]
+    _session_ctx,
+    "Working outside of session context.",
+    factory=lambda: db.get_or_create_session()[0],
+)
