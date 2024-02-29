@@ -1,6 +1,8 @@
 """User model."""
 from __future__ import annotations
 
+from uuid import UUID
+
 import jwt
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -63,11 +65,16 @@ class User(BaseModel, ThreadMixin):
     def get_by_token(cls, token: str) -> Self | None:
         """Get a user by a token."""
         data = cls.decode_token(token)
-        user: Self | None = None
+        sub = data["sub"]
+        user = session.query(cls).filter(cls.kinde_user == sub).first()
+        if user:
+            return user
         try:
-            user = cls.get(data["sub"])
-        except cls.DoesNotExist:
-            user = (
-                session.query(cls).filter(cls.kinde_user == data["sub"]).first()
-            )
-        return user
+            # Try to parse the sub as a UUID
+            UUID(sub)
+        except ValueError:
+            return None
+        try:
+            return cls.get(sub)
+        except cls.DoesNotExistError:
+            return None
