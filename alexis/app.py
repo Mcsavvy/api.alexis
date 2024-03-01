@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.applications import BaseHTTPMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from langserve import add_routes  # type: ignore[import-untyped]
 
 from alexis import logging
@@ -96,10 +96,18 @@ async def redirect_root_to_docs():
     return RedirectResponse("/docs")
 
 
+async def api_documentation(request: Request):
+    """API documentation."""
+    return HTMLResponse(
+        (Path(__file__).parent / "templates" / "elements.html").read_text()
+    )
+
+
 def create_app() -> AlexisApp:
     """Create the Alexis App."""
-    app = AlexisApp()
-    app.add_api_route("/", redirect_root_to_docs)
+    app = AlexisApp(docs_url=None, redoc_url=None)
+    app.add_api_route("/", redirect_root_to_docs, include_in_schema=False)
+    app.add_api_route("/docs", api_documentation, include_in_schema=False)
     app._load_routes()
     app._load_chains()
     app._enable_cors()
