@@ -4,6 +4,7 @@
 ROUTERS = [
     "alexis.auth.views:router",
     "alexis.chat.views:router",
+    "alexis.chat.views:project"
 ]
 
 MIDDLEWARES = [

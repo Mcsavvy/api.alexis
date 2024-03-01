@@ -2,14 +2,37 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from alexis.components import redis, session
 from alexis.components.auth import is_authenticated
-from alexis.models import Thread, User
+from alexis.models import Project, Thread, User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+project = APIRouter(prefix="/project", tags=["project"])
+
+
+class ProjectExistsQuery(BaseModel):
+    """Project exists query."""
+
+    project: str
+    """Project id."""
+    tasks: list[str]
+    """List of task ids."""
+
+
+class ProjectExistsResponse(BaseModel):
+    """Project exists response."""
+
+    project: bool
+    """Project exists."""
+    tasks: list[bool]
+    """List of task exists."""
+
+
+class ProjectStoreQuery(Project):
+    """Project store query."""
 
 
 class ThreadSchema(BaseModel):
@@ -108,3 +131,18 @@ async def get_messages(thread_id: UUID, user: User = Depends(is_authenticated)):
         raise HTTPException(status_code=403, detail="Forbidden")
     messages = thread.chats
     return messages
+
+
+# a route to query if a project is stored in the database
+@project.post("/exists", response_model=ProjectExistsResponse)
+async def project_exists(project: ProjectExistsQuery):
+    """Check if project exists."""
+    result = redis.project_exists(project=project.project, tasks=project.tasks)
+    return {"project": result[0], "tasks": result[1]}
+
+
+@project.post("/save")
+async def save_project(project: ProjectStoreQuery):
+    """Store project."""
+    redis.store_project(project)
+    return Response(status_code=201)
