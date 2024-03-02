@@ -27,7 +27,7 @@ def project_exists(project: str, tasks: list[str]):
     return project_exists, task_exists
 
 
-def get_project(project_id: str, include_tasks: bool=True) -> Project | None:
+def get_project(project_id: str, include_tasks: bool = True) -> Project | None:
     """Get project."""
     project_key = f"project:{project_id}"
     project = cast(dict, client.hgetall(project_key))
@@ -83,3 +83,15 @@ def delete_project(project_id: str):
     task_ids: list[str] = client.keys(f"{project_key}:task:*")  # type: ignore
     for task in task_ids:
         client.delete(task)
+
+
+def get_all_projects(limit: int = 100) -> list[str]:
+    """Get all projects ids."""
+    projects: list[bytes] = client.keys("project:*")  # type: ignore
+    return [p.decode() for p in projects[:limit]]
+
+
+def get_all_tasks(project_id: str, limit: int = 100) -> list[str]:
+    """Get all tasks ids."""
+    tasks: list[bytes] = client.keys(f"project:{project_id}:task:*")  # type: ignore
+    return [t.decode().split(":")[-1] for t in tasks[:limit]]
