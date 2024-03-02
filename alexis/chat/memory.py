@@ -140,7 +140,6 @@ def get_history_from_thread(
     thread_id: str | UUID,
     max_token_limit: int,
     user_id: str,
-    task: str | None = None,
 ) -> ThreadChatMessageHistory:
     """Get chat history from thread."""
     from langchain_openai.llms import OpenAI
