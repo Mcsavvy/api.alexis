@@ -87,8 +87,17 @@ def delete_project(project_id: str):
 
 def get_all_projects(limit: int = 100) -> list[str]:
     """Get all projects ids."""
-    projects: list[bytes] = client.keys("project:*")  # type: ignore
-    return [p.decode() for p in projects[:limit]]
+    import re
+
+    key: bytes
+    projects: list[str] = []
+    for key in client.keys("project:*[0-9]"):  # type: ignore
+        if len(projects) >= limit:
+            break
+        if re.match(r"^project:[0-9]+$", key.decode()):
+            id = key.decode().split(":")[-1]
+            projects.append(id)
+    return projects
 
 
 def get_all_tasks(project_id: str, limit: int = 100) -> list[str]:
