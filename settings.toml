@@ -1,4 +1,7 @@
 [default]
+LANGCHAIN_TRACING_V2 = true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+
 
 # Server
 ROUTERS = [
@@ -10,6 +13,8 @@ ROUTERS = [
 MIDDLEWARES = [
     "alexis.components.database:SessionMiddleware",
 ]
+
+LANGCHAIN_VERBOSE = true
 
 # CORS
 CORS_ALLOWED_ORIGINS = ["*"]
