@@ -190,7 +190,8 @@ class ContextOutput(TypedDict):
     context: str
 
 
-@chain  # type: ignore[arg-type]
+@chain
+@partial(cast, Runnable[ContextInput, ContextOutput])
 async def GetChainContext(  # noqa: N802
     data: ContextInput, config: RunnableConfig
 ) -> ContextOutput:
