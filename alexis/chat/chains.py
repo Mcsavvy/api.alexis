@@ -1,5 +1,6 @@
 """Alexis Chains."""
 
+from functools import partial
 from typing import TypedDict, cast
 
 from fastapi import HTTPException, Request
@@ -10,6 +11,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import (  # noqa: F401, F403
     ConfigurableFieldSpec,
+    Runnable,
     RunnableBranch,
     RunnableConfig,
     RunnableLambda,
@@ -112,7 +114,10 @@ class ProjectDetails(BaseTool):
 
 
 class TaskDetails(BaseTool):
-    """Tool that extracts information about a task in a project."""
+    """Extracts all information about a task in a project.
+
+    Only use this tool if you need the full task information.
+    """
 
     name: str = "project_task_details"
     description: str = TASK_DETAILS_DESCRIPTION
@@ -173,7 +178,7 @@ def load_project_context(project_id: str, task_id: str | None = None) -> str:
 
 model = ChatOpenAI()
 parser = StrOutputParser()
-tools = [ProjectTaskList(), ProjectDetails(), TaskDetails()]
+tools = [TaskDetails()]
 
 
 class ContextInput(TypedDict):
