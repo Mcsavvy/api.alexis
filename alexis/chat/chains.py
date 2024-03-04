@@ -4,9 +4,7 @@ from functools import partial
 from typing import TypedDict, cast
 
 from fastapi import HTTPException, Request
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.pydantic_v1 import BaseModel, Field
-from langchain.tools import BaseTool
+from langchain import hub
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import (  # noqa: F401, F403
@@ -29,7 +27,6 @@ from .memory import (  # noqa: F401, F403
     fetch_messages_from_thread,
     get_history_from_thread,
 )
-from .prompts import ProjectPrompt  # noqa: F401, F403
 
 PROJECT_SHORT_FMT = "{title} (`id={id}`)"
 
@@ -41,106 +38,33 @@ PROJECT_FMT = """
 {tasks}
 """.strip()
 
-TASK_SHORT_FMT = "- {number}. {title} (`id={id}`)"
-
+TASK_SHORT_FMT = """
+#### {number}. {title} (`id={id}`)
+[details not included]
+""".strip()
 
 TASK_FMT = """
-## {number}. {title}  (`id={id}`)
+#### {number}. {title}  (`id={id}`)
 {description}
 """.strip()
 
-TASK_DETAILS_DESCRIPTION = """
-Extract all information about a task in a project. \
-Useful for when a user asks a task-specific question. \
-The task information is bulky so avoid using this tool \
-if you don't need the full task information.
-""".strip()
 
-
-class TaskDetailsInput(BaseModel):
-    """Task details input."""
-
-    project_id: str = Field(description="ID of the project to search in.")
-    id: str = Field(
-        description=(
-            "ID of the task to extract information about."
-            " The id is numeric and you can get the correct id "
-            "by first listing all tasks in the project."
-        )
-    )
-
-
-class ProjectDetailsInput(BaseModel):
-    """Project details input."""
-
-    project_id: str
-
-
-class ProjectTaskListInput(BaseModel):
-    """Project task list input."""
-
-    project_id: str
-
-
-class ProjectTaskList(BaseTool):
-    """Tool that extracts the list of tasks in a project."""
-
-    name: str = "project_task_list"
-    description: str = "Lists all tasks in a project."
-    args_schema: type[BaseModel] = ProjectTaskListInput
-
-    def _run(self, project_id: str) -> str:
-        """Use the tool."""
-        project = fetch_project(project_id)
-        return "\n".join(
-            [
-                TASK_SHORT_FMT.format(**task.model_dump())
-                for task in project.tasks
-            ]
-        )
-
-
-class ProjectDetails(BaseTool):
-    """Tool that extracts information about a project."""
-
-    name: str = "project_details"
-    description: str = "Extracts information about a project."
-    args_schema: type[BaseModel] = ProjectDetailsInput
-
-    def _run(self, project_id: str) -> str:
-        """Use the tool."""
-        project = fetch_project(project_id)
-        return format_project(project)
-
-
-class TaskDetails(BaseTool):
-    """Extracts all information about a task in a project.
-
-    Only use this tool if you need the full task information.
-    """
-
-    name: str = "project_task_details"
-    description: str = TASK_DETAILS_DESCRIPTION
-    args_schema: type[BaseModel] = TaskDetailsInput
-
-    def _run(self, project_id: str, id: str) -> str:
-        """Use the tool."""
-        project = fetch_project(project_id)
-        task = fetch_task(project, id)
-        return format_task(task)
-
-
-def format_project(project: Project):
+def format_project(project: Project, tasks: list[str]):
     """Convert a project to a markdown string."""
     data = project.model_dump()
-    tasks = "\n".join([TASK_SHORT_FMT.format(**task) for task in data["tasks"]])
-    data["tasks"] = tasks
+    tasks_formatted = "\n\n".join(
+        [format_task(t, t.id in tasks) for t in project.tasks]
+    )
+    data["tasks"] = tasks_formatted
     return PROJECT_FMT.format(**data)
 
 
-def format_task(task: Task):
+def format_task(task: Task, include_details: bool = False):
     """Convert a task to a markdown string."""
-    return TASK_FMT.format(**task.model_dump())
+    if include_details:
+        return TASK_FMT.format(**task.model_dump())
+    else:
+        return TASK_SHORT_FMT.format(**task.model_dump())
 
 
 def fetch_project(project_id: str) -> Project:
@@ -169,22 +93,24 @@ def fetch_task(project: str | Project, task_id: str) -> Task:
     return task
 
 
-def load_project_context(project_id: str, task_id: str | None = None) -> str:
+def load_project_context(
+    project: Project, task_ids: list[str] | None = None
+) -> str:
     """Format a project and task."""
-    project = fetch_project(project_id)
-    context = format_project(project)
+    context = format_project(project, task_ids or [])
     return context
 
 
 model = ChatOpenAI()
 parser = StrOutputParser()
-tools = [TaskDetails()]
+prompt = hub.pull("alexis/project-prompt")
 
 
 class ContextInput(TypedDict):
     """Context input."""
 
     query: str
+    history: list[BaseMessage]
 
 
 class ContextOutput(TypedDict):
@@ -195,18 +121,34 @@ class ContextOutput(TypedDict):
     context: str
 
 
+def extract_tasks(query: str, project: Project) -> list[str]:
+    """Extract task numbers from a query."""
+    import re
+
+    task_inclusion = re.compile(r"#(\d+)", re.IGNORECASE | re.MULTILINE)
+    task_nums: list[str] = task_inclusion.findall(query)
+    task_ids: list[str] = []
+    if not task_nums:
+        return task_ids
+    for task in project.tasks:
+        if str(task.number) in task_nums:
+            task_ids.append(task.id)
+    return task_ids
+
+
 @chain
 @partial(cast, Runnable[ContextInput, ContextOutput])
 async def GetChainContext(  # noqa: N802
     data: ContextInput, config: RunnableConfig
 ) -> ContextOutput:
     """Load chain context."""
-    metadata = config.get("metadata", {})
-    assert "thread_id" in metadata, "thread_id not found in metadata"
-    assert "user_id" in metadata, "user_id not found in metadata"
+    metadata = config["metadata"]
+    for key in ["thread_id", "user_id"]:
+        assert key in metadata, f"{key} not found in metadata"
+
     user_id: str = metadata["user_id"]
     thread_id: str = metadata["thread_id"]
-    max_token_limit: int = metadata.get("max_token_limit", 3000)
+
     try:
         user = User.get(user_id)
     except User.DoesNotExistError:
@@ -221,25 +163,16 @@ async def GetChainContext(  # noqa: N802
         )
     if thread.user_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-    project = str(thread.project)
-    history = fetch_messages_from_thread(thread_id, max_token_limit)
-    context = load_project_context(project)
+
+    project_id = str(thread.project)
+    project = fetch_project(project_id)
+    included_tasks = extract_tasks(data["query"], project)
+    context = load_project_context(project, included_tasks)
     return {
         "query": data["query"],
-        "history": history,
+        "history": data["history"],
         "context": context,
     }
-
-
-@chain
-def GetExecutor(data: ContextOutput) -> AgentExecutor:  # noqa: N802
-    """Select prompt."""
-    from langchain import hub
-
-    prompt = hub.pull("alexis/project-prompt")
-    agent = create_openai_tools_agent(model, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools, verbose=False)  # type: ignore
-    return executor
 
 
 @chain
@@ -251,8 +184,9 @@ def ParseOutput(data: dict) -> str:  # noqa: N802
 AlexisChain = RunnableWithMessageHistory(
     (
         GetChainContext  # type: ignore[arg-type]
-        | GetExecutor
-        | ParseOutput
+        | prompt
+        | model
+        | parser
     ),
     get_session_history=get_history_from_thread,
     input_messages_key="query",
