@@ -24,7 +24,10 @@ from langchain_openai.chat_models import ChatOpenAI
 
 from ..components import redis
 from ..models import Project, Task, Thread, User
-from .callbacks import StreamCallbackHandler  # noqa: F401, F403
+from .callbacks import (
+    AlexisCallback,
+    StreamCallbackHandler,  # noqa: F401, F403
+)
 from .memory import (  # noqa: F401, F403
     fetch_messages_from_thread,
     get_history_from_thread,
@@ -176,7 +179,10 @@ def load_project_context(project_id: str, task_id: str | None = None) -> str:
     return context
 
 
-model = ChatOpenAI()
+model = ChatOpenAI(
+    streaming=True,
+    callbacks=[AlexisCallback()],
+)
 parser = StrOutputParser()
 tools = [TaskDetails()]
 
@@ -238,7 +244,11 @@ def GetExecutor(data: ContextOutput) -> AgentExecutor:  # noqa: N802
 
     prompt = hub.pull("alexis/project-prompt")
     agent = create_openai_tools_agent(model, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools, verbose=False)  # type: ignore
+    executor = AgentExecutor(
+        agent=agent,  # type: ignore
+        tools=tools,
+        verbose=False,
+    )  # type: ignore
     return executor
 
 

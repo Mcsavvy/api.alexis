@@ -1,5 +1,6 @@
 """Chatbot callbacks."""
 
+import sys
 from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
@@ -10,8 +11,13 @@ from langchain_community.callbacks import OpenAICallbackHandler
 from langchain_community.callbacks.openai_info import (
     get_openai_token_cost_for_model,
 )
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import LLMResult
+from langchain_core.outputs import (
+    ChatGenerationChunk,
+    GenerationChunk,
+    LLMResult,
+)
 
 encoding = tiktoken.get_encoding("cl100k_base")
 
@@ -70,3 +76,27 @@ class StreamCallbackHandler(OpenAICallbackHandler):
             )
             self.successful_requests += 1
         return super().on_llm_end(response, **kwargs)
+
+
+class AlexisCallback(BaseCallbackHandler):
+    """Alexis agent callback handler."""
+
+    def on_llm_new_token(
+        self,
+        token: str,
+        *,
+        chunk: GenerationChunk | ChatGenerationChunk | None = None,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Collect token usage."""
+        sys.stdout.write(token)
+        sys.stdout.flush()
+        return super().on_llm_new_token(
+            token,
+            chunk=chunk,
+            run_id=run_id,
+            parent_run_id=parent_run_id,
+            **kwargs,
+        )
