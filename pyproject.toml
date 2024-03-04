@@ -35,6 +35,7 @@ ipython = "^8.22.0"
 ruff = "^0.1.13"
 black = "^23.12.1"
 isort = "^5.13.2"
+ipykernel = "^6.29.3"
 
 [build-system]
 requires = ["poetry-core"]
@@ -56,6 +57,7 @@ exclude = [
     ".ruff_cache",
     ".mypy_cache",
     ".pytest_cache",
+    "*.ipynb"
 ]
 
 
