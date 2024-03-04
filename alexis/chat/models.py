@@ -6,6 +6,8 @@ from enum import Enum as _Enum
 from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid4
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_openai import ChatOpenAI
 from sqlalchemy import Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
@@ -77,6 +79,37 @@ class Chat(BaseModel):
         if self.next_chat:
             return self.next_chat.id
         return None
+
+    def to_message(self) -> BaseMessage:
+        """Convert the chat to a message."""
+        if self.chat_type == ChatType.QUERY:
+            return HumanMessage(
+                content=self.content,
+                id=self.uid,
+            )
+        return AIMessage(
+            id=self.uid,
+            content=self.content,
+        )
+
+    def compute_token_cost(self, commit=True):
+        """Get the token count of the chat."""
+        logging.debug("computing token cost for chat %s", self.uid[:8])
+        llm = ChatOpenAI()
+        message = self.to_message()
+        token_count = llm.get_num_tokens_from_messages([message])
+        self.cost = token_count
+        if commit:
+            self.save()
+
+    @classmethod
+    def create(cls, commit=True, **kwargs):
+        """Create a chat."""
+        kwargs.setdefault("id", uuid4())
+        instance = super().create(False, **kwargs)
+        if instance.content and not instance.cost:
+            instance.compute_token_cost(commit)
+        return instance
 
 
 class Thread(BaseModel):  # type: ignore
