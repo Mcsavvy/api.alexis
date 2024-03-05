@@ -1,6 +1,7 @@
 """Alexis App."""
 
 from pathlib import Path
+from typing import TypedDict
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.applications import BaseHTTPMiddleware
@@ -61,15 +62,20 @@ class AlexisApp(FastAPI):
             r = load_entry_point(router, APIRouter)
             self.include_router(r)
 
-    def _load_chains(self):
+    def _load_chains(self) -> None:
         """Load the chains."""
-        from alexis.chat.chains import AlexisChain, ContextInput, user_injection
+        from alexis.chat.chains import AlexisChain, user_injection
+
+        class ChainInput(TypedDict):
+            """Alexis Chain input."""
+
+            query: str
 
         add_routes(
             self,
             AlexisChain,
             path="/alexis",
-            input_type=ContextInput,
+            input_type=ChainInput,
             output_type=str,
             per_req_config_modifier=user_injection,
         )
