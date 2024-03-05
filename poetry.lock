@@ -687,6 +687,25 @@ files = [
 ]
 
 [[package]]
+name = "git-cliff"
+version = "2.1.2"
+description = "A highly customizable changelog generator ⛰️"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "git_cliff-2.1.2-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:2ba30dc99838ba3a321f7f7b829d1da547068a942ab8510f1b0bd837da7cfa5d"},
+    {file = "git_cliff-2.1.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:4a3643986f36a8d984399190357b2d4a9a29e0135bbdbf68b62ce12c556d58bf"},
+    {file = "git_cliff-2.1.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cd36a37528d71fbb9c67036907ec1dd11a1b876a369a87c8f550c40241273b02"},
+    {file = "git_cliff-2.1.2-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:63e623109104dc7b169b666f2a142fa92358694a26717bf5ed005ade35f5a6ec"},
+    {file = "git_cliff-2.1.2-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:4b019a8a48d227567995906d4bfbad2caa03f24fd3a7cf96143c8e43fa278ff8"},
+    {file = "git_cliff-2.1.2-py3-none-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:91c599f3273dad304e11f699980f5c6eda5df3f3881d94078fd1af76f01ba595"},
+    {file = "git_cliff-2.1.2-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:bf11cca32c77ea00f137aae99ecac2f1812bb97890863ca205d8c5937ccf4d06"},
+    {file = "git_cliff-2.1.2-py3-none-win32.whl", hash = "sha256:59afadd2083cf6ac0344049c56335136a29de5f61948246a94b26562ab6ff4da"},
+    {file = "git_cliff-2.1.2-py3-none-win_amd64.whl", hash = "sha256:e096b4f7ccfc25c25310ac72bce71367adb1a97e760eaf3d6bfd3f880fd6e889"},
+    {file = "git_cliff-2.1.2.tar.gz", hash = "sha256:763ef4cd6622000bae0fda99e101a44a4a25182f70d5a8b1a9475c49db2a7c41"},
+]
+
+[[package]]
 name = "greenlet"
 version = "3.0.3"
 description = "Lightweight in-process concurrent programming"
