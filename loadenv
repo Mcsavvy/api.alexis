@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Load the virtual environment
 
-ENV={$1:-dev}
+ENV=${1:-dev}
 
 if [ -z $ENV ]; then
     echo "Usage: loadenv [env] [env_file]" 1>&2
