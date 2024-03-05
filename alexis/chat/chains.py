@@ -110,7 +110,7 @@ class ContextInput(TypedDict):
     """Context input."""
 
     query: str
-    history: list[BaseMessage]
+    # history: list[BaseMessage]
 
 
 class ContextOutput(TypedDict):
@@ -170,7 +170,7 @@ async def GetChainContext(  # noqa: N802
     context = load_project_context(project, included_tasks)
     return {
         "query": data["query"],
-        "history": data["history"],
+        "history": data["history"],  # type: ignore
         "context": context,
     }
 
