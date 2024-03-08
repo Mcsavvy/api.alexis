@@ -21,10 +21,16 @@ CORS_ALLOWED_ORIGINS = ["*"]
 
 # Logging
 LOG_HANDLER_CLASS = "rich.logging.RichHandler"
+LOG_SHOW_TIME = false
+LOG_RICH_TRACEBACKS = false
+LOG_TRACEBACKS_SHOW_LOCALS = false
+LOG_HANDLERS = ["console", "file"]
+
 
 [development]
-LOG_LEVEL = "INFO"
+LOG_LEVEL = "DEBUG"
 LOG_SHOW_TIME = false
+
 
 [testing]
 LOG_LEVEL = "DEBUG"
@@ -33,3 +39,4 @@ LOG_SHOW_TIME = false
 [production]
 LOG_LEVEL = "INFO"
 LOG_SHOW_TIME = false
+LOG_HANDLERS = ["console"]

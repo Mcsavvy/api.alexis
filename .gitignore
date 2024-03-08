@@ -17,3 +17,4 @@ project.md
 
 # Ignore database files
 *.sqlite[3]
+alexis.log
