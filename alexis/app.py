@@ -92,6 +92,17 @@ class AlexisApp(FastAPI):
             allow_headers=["*"],
         )
 
+    def _mount_socketio(self):
+        """Mount the socketio."""
+        from alexis.chat import socket  # noqa: F401
+        from alexis.components.socketio import app
+
+        # for namespace in settings.get("SOCKETIO_NAMESPACES", []):
+        #     logging.debug(f"Registering socketio namespace: {namespace}")
+        #     ns = load_entry_point(namespace, Namespace)
+        #     sio.register_namespace(ns)
+        self.mount("/socket.io", app, name="socketio")
+
     def __repr__(self):
         """Get the string representation of the Alexis App."""
         return f"<AlexisApp[{self.settings.env}]: {self.title} v{self.version}>"
@@ -115,7 +126,8 @@ def create_app() -> AlexisApp:
     app.add_api_route("/", redirect_root_to_docs, include_in_schema=False)
     app.add_api_route("/docs", api_documentation, include_in_schema=False)
     app._load_routes()
-    app._load_chains()
+    # app._load_chains()
     app._enable_cors()
     app._load_middlewares()
+    app._mount_socketio()
     return app
