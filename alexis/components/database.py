@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from fastapi import Depends, Request, Response
@@ -20,11 +20,12 @@ from typing_extensions import Self
 
 from alexis import logging
 from alexis.config import settings
-from alexis.utils import LocalProxy
+from alexis.utils import LocalProxy, pascal_to_snake, utcnow
 
 Base: type[DeclarativeBase] = declarative_base()
 _session_ctx = ContextVar[Session]("session")
 __contexts__: list[Session] = []
+metadata = Base.metadata
 
 
 class SQLAlchemy:
@@ -75,32 +76,47 @@ class SQLAlchemy:
         Base.metadata.drop_all(self.engine)
 
 
-def pascal_to_snake(name: str) -> str:
-    """Convert a pascal case string to snake case."""
-    return "".join(
-        ["_" + i.lower() if i.isupper() else i for i in name]
-    ).lstrip("_")  # noqa: E501
+class ModelError(Exception):
+    """Model error."""
+
+    def __init__(self, message: str):
+        """Initialize the model error."""
+        self.message = message
+        super().__init__(message)
 
 
-def utcnow() -> datetime:
-    """Return the current time in UTC."""
-    return datetime.now(tz=timezone.utc)
+class ModelErrorMixin:
+    """Model error mixin."""
 
-
-class BaseModel(Base):  # type: ignore[valid-type, misc]
-    """Base model for the database."""
-
-    class DoesNotExistError(Exception):
+    class DoesNotExistError(ModelError):
         """Does not exist."""
 
-    class CreateError(Exception):
+    class CreateError(ModelError):
         """Error creating."""
 
-    class UpdateError(Exception):
+    class UpdateError(ModelError):
         """Error updating."""
 
-    class DeleteError(Exception):
+    class DeleteError(ModelError):
         """Error deleting."""
+
+    def __init_subclass__(cls) -> None:
+        """Initialize subclass."""
+        for error in (
+            cls.DoesNotExistError,
+            cls.CreateError,
+            cls.UpdateError,
+            cls.DeleteError,
+        ):
+            setattr(
+                cls,
+                error.__name__,
+                type(error.__name__, (error,), {"__doc__": error.__doc__}),
+            )
+
+
+class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
+    """Base model for the database."""
 
     __abstract__ = True
     __table_args__ = {"mysql_charset": "utf8mb4"}
@@ -125,30 +141,8 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
     def __init_subclass__(cls) -> None:
         """Initialize subclass."""
         super().__init_subclass__()
-
         if not hasattr(cls, "__tablename__"):
             cls.__tablename__ = pascal_to_snake(cls.__name__)
-
-        cls.DoesNotExistError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.DoesNotExist",
-            (cls.DoesNotExistError,),
-            {"__doc__": f"{cls.__name__} does not exist"},
-        )
-        cls.CreateError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.CreateError",
-            (cls.CreateError,),
-            {"__doc__": f"Error creating {cls.__name__}"},
-        )
-        cls.UpdateError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.UpdateError",
-            (cls.UpdateError,),
-            {"__doc__": f"Error updating {cls.__name__}"},
-        )
-        cls.DeleteError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.DeleteError",
-            (cls.DeleteError,),
-            {"__doc__": f"Error deleting {cls.__name__}"},
-        )
 
     @classmethod
     def create(cls, commit=True, **kwargs):
