@@ -1,7 +1,13 @@
 """Alexis App."""
 
+from collections.abc import Callable
+from contextlib import (
+    AsyncExitStack,
+    _AsyncGeneratorContextManager,
+    asynccontextmanager,
+)
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, AsyncContextManager, TypedDict
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.applications import BaseHTTPMiddleware
@@ -13,6 +19,23 @@ from alexis.config import settings
 from alexis.utils import cast_fn, load_entry_point
 
 DESCRIPTION = """The ALX Learners Copilot."""
+
+
+@asynccontextmanager
+async def _lifespan(app: "AlexisApp"):
+    """Lifespan handler."""
+    exit_stack = AsyncExitStack()
+    handlers: list[Callable[[AlexisApp], AsyncContextManager[Any]]] = []
+    for fn in settings.get("LIFESPAN_HANDLERS", []):
+        logging.debug(f"Loading lifespan handler: {fn}")
+        handler: Callable[
+            [AlexisApp], _AsyncGeneratorContextManager[Any]
+        ] = load_entry_point(fn)
+        handlers.append(handler)
+    async with exit_stack:
+        for fn in handlers:
+            await exit_stack.enter_async_context(fn(app))
+        yield
 
 
 class AlexisApp(FastAPI):
@@ -92,6 +115,17 @@ class AlexisApp(FastAPI):
             allow_headers=["*"],
         )
 
+    def _mount_socketio(self):
+        """Mount the socketio."""
+        from alexis.chat import socket  # noqa: F401
+        from alexis.components.socketio import app
+
+        # for namespace in settings.get("SOCKETIO_NAMESPACES", []):
+        #     logging.debug(f"Registering socketio namespace: {namespace}")
+        #     ns = load_entry_point(namespace, Namespace)
+        #     sio.register_namespace(ns)
+        self.mount("/socket.io", app, name="socketio")
+
     def __repr__(self):
         """Get the string representation of the Alexis App."""
         return f"<AlexisApp[{self.settings.env}]: {self.title} v{self.version}>"
@@ -111,11 +145,12 @@ async def api_documentation(request: Request):
 
 def create_app() -> AlexisApp:
     """Create the Alexis App."""
-    app = AlexisApp(docs_url=None, redoc_url=None)
+    app = AlexisApp(docs_url=None, redoc_url=None, lifespan=_lifespan)
     app.add_api_route("/", redirect_root_to_docs, include_in_schema=False)
     app.add_api_route("/docs", api_documentation, include_in_schema=False)
     app._load_routes()
-    app._load_chains()
+    # app._load_chains()
     app._enable_cors()
     app._load_middlewares()
+    app._mount_socketio()
     return app

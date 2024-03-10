@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from importlib.metadata import EntryPoint
 from typing import Any, Generic, ParamSpec, TypeVar
 
@@ -39,6 +40,18 @@ def load_entry_point(import_string: str, cast: type[_Type] = Callable) -> _Type:
     """Load an entrypoint by name."""
     entry_point = EntryPoint(name=None, group=None, value=import_string)  # type: ignore
     return entry_point.load()
+
+
+def pascal_to_snake(name: str) -> str:
+    """Convert a pascal case string to snake case."""
+    return "".join(
+        ["_" + i.lower() if i.isupper() else i for i in name]
+    ).lstrip("_")  # noqa: E501
+
+
+def utcnow() -> datetime:
+    """Return the current time in UTC."""
+    return datetime.now(tz=timezone.utc)
 
 
 class LocalProxy(Generic[_Type]):

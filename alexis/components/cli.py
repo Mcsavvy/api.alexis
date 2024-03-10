@@ -15,7 +15,7 @@ def shell():
 
     from alexis.app import create_app
     from alexis.components import redis
-    from alexis.components.database import db
+    from alexis.components.database import db, session
     from alexis.config import settings
     from alexis.logging import get_logger
     from alexis.models import Chat, ChatType, Thread, User
@@ -24,20 +24,19 @@ def shell():
     logger = get_logger()
 
     shell = InteractiveShellEmbed()
-    with db.scoped_session() as session:
-        local_ns = {
-            "app": app,
-            "db": db,
-            "session": session,
-            "User": User,
-            "Chat": Chat,
-            "ChatType": ChatType,
-            "Thread": Thread,
-            "redis": redis,
-            "settings": settings,
-            "logger": logger,
-        }
-        shell(local_ns=local_ns)
+    local_ns = {
+        "app": app,
+        "db": db,
+        "session": session,
+        "User": User,
+        "Chat": Chat,
+        "ChatType": ChatType,
+        "Thread": Thread,
+        "redis": redis,
+        "settings": settings,
+        "logger": logger,
+    }
+    shell(local_ns=local_ns)
 
 
 @cli.group(name="db")

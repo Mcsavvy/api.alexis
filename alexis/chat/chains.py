@@ -214,6 +214,22 @@ AlexisChain = RunnableWithMessageHistory(
             description="ID of the current user",
             is_shared=True,
         ),
+        ConfigurableFieldSpec(
+            id="query_id",
+            annotation=str,
+            name="Query ID",
+            description="ID of the query",
+            is_shared=True,
+            default=None,
+        ),
+        ConfigurableFieldSpec(
+            id="response_id",
+            annotation=str,
+            name="Response ID",
+            description="ID of the response",
+            is_shared=True,
+            default=None,
+        ),
     ],
 )
 
