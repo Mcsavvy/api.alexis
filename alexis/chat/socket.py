@@ -100,13 +100,14 @@ async def connect(sid, environ: SocketIOConnectionInfo, auth: dict):
     """On connect."""
     from alexis.components.auth import is_authenticated
 
+    print(environ.keys())
     auth_info = AuthInfo(**auth)
     try:
         user = await is_authenticated(auth_info.accessToken)
     except Exception:
         return False
     user_agent = ""
-    for k, v in environ["asgi_scope"]["headers"]:
+    for k, v in environ["asgi.scope"]["headers"]:  # type: ignore
         if k.lower() == b"user-agent":
             user_agent = v.decode()
             break
