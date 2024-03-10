@@ -10,14 +10,17 @@ ROUTERS = [
     "alexis.chat.views:project"
 ]
 
-MIDDLEWARES = [
-    "alexis.components.database:SessionMiddleware",
-]
+MIDDLEWARES = []
 
 LANGCHAIN_VERBOSE = true
 
 # CORS
 CORS_ALLOWED_ORIGINS = ["*"]
+
+# LIFESPAN FUNCTIONS
+LIFESPAN_HANDLERS = [
+    "alexis.components.database:lifespan",
+]
 
 # Logging
 LOG_HANDLER_CLASS = "rich.logging.RichHandler"

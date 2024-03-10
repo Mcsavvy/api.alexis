@@ -1,12 +1,11 @@
 """Database component for Alexis."""
+from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from contextlib import contextmanager
-from contextvars import ContextVar
+from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import ClassVar, Generic, TypeVar, cast
 from uuid import UUID, uuid4
 
-from fastapi import Depends, Request, Response
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
@@ -14,17 +13,16 @@ from sqlalchemy.orm import (
     Mapped,
     Session,
     mapped_column,
+    scoped_session,
     sessionmaker,
 )
 from typing_extensions import Self
 
 from alexis import logging
 from alexis.config import settings
-from alexis.utils import LocalProxy, pascal_to_snake, utcnow
+from alexis.utils import pascal_to_snake, utcnow
 
 Base: type[DeclarativeBase] = declarative_base()
-_session_ctx = ContextVar[Session]("session")
-__contexts__: list[Session] = []
 metadata = Base.metadata
 
 
@@ -38,24 +36,17 @@ class SQLAlchemy:
             autocommit=False, autoflush=False, bind=self.engine
         )
 
-
-
     def create_all(self):
         """Create all tables."""
-        Base.metadata.create_all(self.engine)
+        metadata.create_all(self.engine)
 
     def drop_all(self):
         """Drop all tables."""
-        Base.metadata.drop_all(self.engine)
+        metadata.drop_all(self.engine)
 
 
 class ModelError(Exception):
     """Model error."""
-
-    def __init__(self, message: str):
-        """Initialize the model error."""
-        self.message = message
-        super().__init__(message)
 
 
 class ModelErrorMixin:
@@ -163,6 +154,7 @@ class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
 
 
 db = SQLAlchemy(settings.SQLALCHEMY_DATABASE_URI)
+session = scoped_session(db._session)
 
 
 def get_session():
@@ -170,34 +162,14 @@ def get_session():
     session, created = db.get_or_create_session()
     token = _session_ctx.set(session)
     try:
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Get a session lifespan."""
+    try:
+        logging.debug("Creating database session...")
         yield session
     finally:
-        if created:
-            __contexts__.remove(session)
-        _session_ctx.reset(token)
-        session.close()
-
-
-async def SessionMiddleware(  # noqa: N802
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    """Session middleware."""
-    logging.debug("Loading session middleware...")
-    logging.debug("Creating session...")
-    session, created = db.get_or_create_session()
-    token = _session_ctx.set(session)
-    response = await call_next(request)
-    logging.debug("Closing session...")
-    if created:
-        __contexts__.remove(session)
-    _session_ctx.reset(token)
-    session.close()
-    return response
-
-
-SessionDependency = Depends(get_session)
-session: Session = LocalProxy(  # type: ignore[assignment,misc]
-    _session_ctx,
-    "Working outside of session context.",
-    factory=lambda: db.get_or_create_session()[0],
-)
+        logging.debug("Closing database session...")
+        session.remove()
