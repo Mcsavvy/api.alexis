@@ -38,34 +38,7 @@ class SQLAlchemy:
             autocommit=False, autoflush=False, bind=self.engine
         )
 
-    @contextmanager
-    def scoped_session(self):
-        """Get a new SQLAlchemy session."""
-        session = self._session()
-        try:
-            yield session
-        finally:
-            session.close()
 
-    def get_or_create_session(self) -> tuple[Session, bool]:
-        """Get or create a new session."""
-        if __contexts__:
-            session = __contexts__[-1]
-            return session, False
-        session = self._session()
-        __contexts__.append(session)
-        return session, True
-
-    def execute(self, function, *args, **kwargs):
-        """Execute a function using a new session and handle transactions."""
-        with self.scoped_session() as db:
-            try:
-                result = function(db, *args, **kwargs)
-                db.commit()
-                return result
-            except Exception:
-                db.rollback()
-                raise
 
     def create_all(self):
         """Create all tables."""
