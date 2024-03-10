@@ -11,7 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    Session,
+    Query,
     mapped_column,
     scoped_session,
     sessionmaker,
@@ -24,6 +24,7 @@ from alexis.utils import pascal_to_snake, utcnow
 
 Base: type[DeclarativeBase] = declarative_base()
 metadata = Base.metadata
+ModelT = TypeVar("ModelT", bound="BaseModel")
 
 
 class SQLAlchemy:
@@ -79,11 +80,56 @@ class ModelErrorMixin:
             )
 
 
+class BaseQuery(Query, Generic[ModelT]):
+    """Base query."""
+
+    @property
+    def tables(self) -> set[type[BaseModel]]:
+        """Get tables."""
+        from sqlalchemy.sql.schema import Table
+
+        _tables: set[type[BaseModel]] = set()
+        for element in self._raw_columns:
+            if isinstance(element, Table):
+                table = cast(
+                    type[BaseModel],
+                    element._annotations["parententity"].class_,
+                )
+                _tables.add(table)
+        return _tables
+
+    @property
+    def model(self) -> type[ModelT] | None:
+        """Get model class."""
+        tables = self.tables
+        if len(tables) == 1:
+            return tables.pop()
+        return None
+
+    def get(self, ident) -> ModelT:
+        """Get a model by id."""
+        if isinstance(ident, str):
+            try:
+                ident = UUID(ident)
+            except ValueError:
+                # maybe it's not a UUID
+                pass
+        rv = super().get(ident)
+        if rv is None:
+            if model := self.model:
+                raise model.DoesNotExistError
+            logging.warning("Multiple models used for one query")
+            raise BaseModel.DoesNotExistError
+        return rv
+
+
 class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
     """Base model for the database."""
 
     __abstract__ = True
     __table_args__ = {"mysql_charset": "utf8mb4"}
+
+    query: ClassVar[BaseQuery[Self]]
 
     id: Mapped[UUID] = mapped_column(
         primary_key=True, default=uuid4, nullable=False
@@ -155,13 +201,7 @@ class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
 
 db = SQLAlchemy(settings.SQLALCHEMY_DATABASE_URI)
 session = scoped_session(db._session)
-
-
-def get_session():
-    """SQLAlchemy session dependency."""
-    session, created = db.get_or_create_session()
-    token = _session_ctx.set(session)
-    try:
+Base.query = session.query_property(BaseQuery)
 
 
 @asynccontextmanager
