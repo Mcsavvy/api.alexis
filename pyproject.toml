@@ -29,6 +29,7 @@ langsmith = "^0.1.10"
 mysqlclient = "^2.2.4"
 httpx-sse = "^0.4.0"
 python-socketio = "^5.11.1"
+alembic = "^1.13.1"
 
 
 [tool.poetry.group.dev.dependencies]
