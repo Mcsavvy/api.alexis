@@ -9,7 +9,19 @@ from socketio import (  # type: ignore[import]
     AsyncServer,
 )
 
-sio = AsyncServer(async_mode="asgi")
+from alexis.config import settings
+
+sio = AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins="*",
+)
+sio.instrument(
+    auth={
+        "username": settings.get("SOCKETIO_USERNAME", "admin"),
+        "password": settings.get("SOCKETIO_PASSWORD", "admin"),
+    },
+    mode=settings.get("SOCKETIO_MODE", settings.env),
+)
 app = ASGIApp(sio)
 
 
