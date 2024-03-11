@@ -265,4 +265,5 @@ async def user_injection(config: dict, request: Request) -> dict:
     else:
         user = await get_current_user_from_request(request)
     config["configurable"]["user_id"] = user.uid
+    config["configurable"]["user"] = user.name
     return config
