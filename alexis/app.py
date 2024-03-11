@@ -149,7 +149,7 @@ def create_app() -> AlexisApp:
     app.add_api_route("/", redirect_root_to_docs, include_in_schema=False)
     app.add_api_route("/docs", api_documentation, include_in_schema=False)
     app._load_routes()
-    # app._load_chains()
+    app._load_chains()
     app._enable_cors()
     app._load_middlewares()
     app._mount_socketio()
