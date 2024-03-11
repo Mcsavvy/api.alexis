@@ -17,3 +17,10 @@ project.md
 
 # Ignore database files
 *.sqlite[3]
+
+# Ignore node files
+node_modules
+package-lock.json
+package.json
+alexis.log
+copy_redis_data.sh

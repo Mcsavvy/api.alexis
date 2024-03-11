@@ -19,6 +19,9 @@ dictConfig(
             "default": {
                 "format": "%(message)s",
             },
+            "verbose": {
+                "format": "[%(asctime)s] %(levelname)s: %(message)s",
+            },
         },
         "handlers": {
             "console": {
@@ -26,6 +29,15 @@ dictConfig(
                 "class": config.LOG_HANDLER_CLASS,
                 "formatter": "default",
                 "show_time": config.LOG_SHOW_TIME,
+                "rich_tracebacks": config.LOG_RICH_TRACEBACKS,
+                "tracebacks_show_locals": config.LOG_TRACEBACKS_SHOW_LOCALS,
+            },
+            "file": {
+                "level": "DEBUG",
+                "class": "logging.FileHandler",
+                "formatter": "verbose",
+                "filename": "alexis.log",
+                "mode": "w",
             },
         },
         "root": {
@@ -34,8 +46,8 @@ dictConfig(
         },
         "loggers": {
             "alexis": {
-                "level": config.LOG_LEVEL,
-                "handlers": ["console"],
+                "level": "DEBUG",
+                "handlers": config.get("LOG_HANDLERS", ["console"]),
                 "propagate": False,
             },
         },

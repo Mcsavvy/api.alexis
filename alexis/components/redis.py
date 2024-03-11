@@ -1,5 +1,5 @@
 """Alexis Redis component."""
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 from redis import Redis
 
@@ -41,7 +41,10 @@ def get_project(project_id: str, include_tasks: bool = True) -> Project | None:
             task_key = f"{project_key}:task:{task_id.decode()}"
             task = cast(dict, client.hgetall(task_key))
             task["id"] = d(task_id)
-            del task[b"project"]
+            if b"project" in task:
+                del task[b"project"]
+            elif "project" in task:
+                del task["project"]
             project["tasks"].append(
                 {d(key): d(value) for key, value in task.items()}
             )
@@ -104,3 +107,31 @@ def get_all_tasks(project_id: str, limit: int = 100) -> list[str]:
     """Get all tasks ids."""
     tasks: list[bytes] = client.keys(f"project:{project_id}:task:*")  # type: ignore
     return [t.decode().split(":")[-1] for t in tasks[:limit]]
+
+
+class SocketData(TypedDict):
+    """Socket data."""
+
+    user: str
+    project: str
+    user_agent: str
+
+
+class SocketConnection:
+    """Socket connection."""
+
+    @classmethod
+    async def open(cls, sid: str, data: SocketData):
+        """Open the connection."""
+        client.hset(f"socket:{sid}", mapping=data)  # type: ignore
+
+    @classmethod
+    async def close(cls, sid: str):
+        """Close the connection."""
+        client.delete(f"socket:{sid}")
+
+    @classmethod
+    async def get(cls, sid: str) -> SocketData:
+        """Get the connection."""
+        raw: dict = client.hgetall(f"socket:{sid}")  # type: ignore
+        return {d(key): d(value) for key, value in raw.items()}  # type: ignore

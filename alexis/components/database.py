@@ -1,30 +1,30 @@
 """Database component for Alexis."""
+from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from contextlib import contextmanager
-from contextvars import ContextVar
-from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import ClassVar, Generic, TypeVar, cast
 from uuid import UUID, uuid4
 
-from fastapi import Depends, Request, Response
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    Session,
+    Query,
     mapped_column,
+    scoped_session,
     sessionmaker,
 )
 from typing_extensions import Self
 
 from alexis import logging
 from alexis.config import settings
-from alexis.utils import LocalProxy
+from alexis.utils import pascal_to_snake, utcnow
 
 Base: type[DeclarativeBase] = declarative_base()
-_session_ctx = ContextVar[Session]("session")
-__contexts__: list[Session] = []
+metadata = Base.metadata
+ModelT = TypeVar("ModelT", bound="BaseModel")
 
 
 class SQLAlchemy:
@@ -37,73 +37,99 @@ class SQLAlchemy:
             autocommit=False, autoflush=False, bind=self.engine
         )
 
-    @contextmanager
-    def scoped_session(self):
-        """Get a new SQLAlchemy session."""
-        session = self._session()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    def get_or_create_session(self) -> tuple[Session, bool]:
-        """Get or create a new session."""
-        if __contexts__:
-            session = __contexts__[-1]
-            return session, False
-        session = self._session()
-        __contexts__.append(session)
-        return session, True
-
-    def execute(self, function, *args, **kwargs):
-        """Execute a function using a new session and handle transactions."""
-        with self.scoped_session() as db:
-            try:
-                result = function(db, *args, **kwargs)
-                db.commit()
-                return result
-            except Exception:
-                db.rollback()
-                raise
-
     def create_all(self):
         """Create all tables."""
-        Base.metadata.create_all(self.engine)
+        metadata.create_all(self.engine)
 
     def drop_all(self):
         """Drop all tables."""
-        Base.metadata.drop_all(self.engine)
+        metadata.drop_all(self.engine)
 
 
-def pascal_to_snake(name: str) -> str:
-    """Convert a pascal case string to snake case."""
-    return "".join(
-        ["_" + i.lower() if i.isupper() else i for i in name]
-    ).lstrip("_")  # noqa: E501
+class ModelError(Exception):
+    """Model error."""
 
 
-def utcnow() -> datetime:
-    """Return the current time in UTC."""
-    return datetime.now(tz=timezone.utc)
+class ModelErrorMixin:
+    """Model error mixin."""
 
-
-class BaseModel(Base):  # type: ignore[valid-type, misc]
-    """Base model for the database."""
-
-    class DoesNotExistError(Exception):
+    class DoesNotExistError(ModelError):
         """Does not exist."""
 
-    class CreateError(Exception):
+    class CreateError(ModelError):
         """Error creating."""
 
-    class UpdateError(Exception):
+    class UpdateError(ModelError):
         """Error updating."""
 
-    class DeleteError(Exception):
+    class DeleteError(ModelError):
         """Error deleting."""
+
+    def __init_subclass__(cls) -> None:
+        """Initialize subclass."""
+        for error in (
+            cls.DoesNotExistError,
+            cls.CreateError,
+            cls.UpdateError,
+            cls.DeleteError,
+        ):
+            setattr(
+                cls,
+                error.__name__,
+                type(error.__name__, (error,), {"__doc__": error.__doc__}),
+            )
+
+
+class BaseQuery(Query, Generic[ModelT]):
+    """Base query."""
+
+    @property
+    def tables(self) -> set[type[BaseModel]]:
+        """Get tables."""
+        from sqlalchemy.sql.schema import Table
+
+        _tables: set[type[BaseModel]] = set()
+        for element in self._raw_columns:
+            if isinstance(element, Table):
+                table = cast(
+                    type[BaseModel],
+                    element._annotations["parententity"].class_,
+                )
+                _tables.add(table)
+        return _tables
+
+    @property
+    def model(self) -> type[ModelT] | None:
+        """Get model class."""
+        tables = self.tables
+        if len(tables) == 1:
+            return tables.pop()
+        return None
+
+    def get(self, ident) -> ModelT:
+        """Get a model by id."""
+        if isinstance(ident, str):
+            try:
+                ident = UUID(ident)
+            except ValueError:
+                # maybe it's not a UUID
+                pass
+        rv = super().get(ident)
+        if rv is None:
+            if model := self.model:
+                raise model.DoesNotExistError
+            logging.warning("Multiple models used for one query")
+            raise BaseModel.DoesNotExistError
+        return rv
+
+
+class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
+    """Base model for the database."""
 
     __abstract__ = True
     __table_args__ = {"mysql_charset": "utf8mb4"}
+
+    query: ClassVar[BaseQuery[Self]]
 
     id: Mapped[UUID] = mapped_column(
         primary_key=True, default=uuid4, nullable=False
@@ -125,30 +151,8 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
     def __init_subclass__(cls) -> None:
         """Initialize subclass."""
         super().__init_subclass__()
-
         if not hasattr(cls, "__tablename__"):
             cls.__tablename__ = pascal_to_snake(cls.__name__)
-
-        cls.DoesNotExistError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.DoesNotExist",
-            (cls.DoesNotExistError,),
-            {"__doc__": f"{cls.__name__} does not exist"},
-        )
-        cls.CreateError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.CreateError",
-            (cls.CreateError,),
-            {"__doc__": f"Error creating {cls.__name__}"},
-        )
-        cls.UpdateError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.UpdateError",
-            (cls.UpdateError,),
-            {"__doc__": f"Error updating {cls.__name__}"},
-        )
-        cls.DeleteError = type(  # type: ignore[assignment,misc]
-            f"{cls.__name__}.DeleteError",
-            (cls.DeleteError,),
-            {"__doc__": f"Error deleting {cls.__name__}"},
-        )
 
     @classmethod
     def create(cls, commit=True, **kwargs):
@@ -196,41 +200,16 @@ class BaseModel(Base):  # type: ignore[valid-type, misc]
 
 
 db = SQLAlchemy(settings.SQLALCHEMY_DATABASE_URI)
+session = scoped_session(db._session)
+Base.query = session.query_property(BaseQuery)
 
 
-def get_session():
-    """SQLAlchemy session dependency."""
-    session, created = db.get_or_create_session()
-    token = _session_ctx.set(session)
+@asynccontextmanager
+async def lifespan(app):
+    """Get a session lifespan."""
     try:
+        logging.debug("Creating database session...")
         yield session
     finally:
-        if created:
-            __contexts__.remove(session)
-        _session_ctx.reset(token)
-        session.close()
-
-
-async def SessionMiddleware(  # noqa: N802
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    """Session middleware."""
-    logging.debug("Loading session middleware...")
-    logging.debug("Creating session...")
-    session, created = db.get_or_create_session()
-    token = _session_ctx.set(session)
-    response = await call_next(request)
-    logging.debug("Closing session...")
-    if created:
-        __contexts__.remove(session)
-    _session_ctx.reset(token)
-    session.close()
-    return response
-
-
-SessionDependency = Depends(get_session)
-session: Session = LocalProxy(  # type: ignore[assignment,misc]
-    _session_ctx,
-    "Working outside of session context.",
-    factory=lambda: db.get_or_create_session()[0],
-)
+        logging.debug("Closing database session...")
+        session.remove()

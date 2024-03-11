@@ -255,10 +255,14 @@ class Thread(BaseModel):  # type: ignore
         """Create a thread."""
         from alexis.components import redis
 
-        project = kwargs.get("project", None)
-        if project is not None:
-            if not redis.project_exists(str(project), []):
-                raise cls.CreateError(f"Project '{project}' does not exist")
+        if "project" not in kwargs:
+            raise cls.CreateError("Project is required")
+        project_id = kwargs["project"]
+        project = redis.get_project(str(project_id))
+        if project is None:
+            raise cls.CreateError(f"Project '{project_id}' does not exist")
+        if not kwargs.get("title"):
+            kwargs["title"] = f"{project.title}"
         return super().create(commit, **kwargs)
 
     def update(self, commit=True, **kwargs):
