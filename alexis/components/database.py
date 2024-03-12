@@ -18,7 +18,7 @@ from sqlalchemy.orm import (
     scoped_session,
     sessionmaker,
 )
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from alexis import logging
 from alexis.config import settings
@@ -188,6 +188,7 @@ class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
             session.commit()
 
     @classmethod
+    @deprecated("Use `.query.get(id)` instead")
     def get(cls, id: UUID | str, throw=True) -> Self:
         """Get model by id."""
         logging.debug(f"Getting {cls.__name__} with id: {id}")
