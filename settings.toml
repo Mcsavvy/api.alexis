@@ -10,7 +10,10 @@ ROUTERS = [
     "alexis.chat.views:project"
 ]
 
-MIDDLEWARES = []
+MIDDLEWARES = [
+    "alexis.components.database:SessionMiddleware",
+]
+
 
 LANGCHAIN_VERBOSE = true
 
