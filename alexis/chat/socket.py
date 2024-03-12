@@ -99,8 +99,6 @@ class SocketIOCallbackHandler(AsyncCallbackHandler):
 async def connect(sid, environ: SocketIOConnectionInfo, auth: dict):
     """On connect."""
     from alexis.components.auth import is_authenticated
-
-    print(environ.keys())
     auth_info = AuthInfo(**auth)
     try:
         user = await is_authenticated(auth_info.accessToken)

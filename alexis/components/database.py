@@ -1,11 +1,13 @@
 """Database component for Alexis."""
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import ClassVar, Generic, TypeVar, cast
 from uuid import UUID, uuid4
 
+from fastapi import Request, Response
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import (
@@ -204,12 +206,24 @@ session = scoped_session(db._session)
 Base.query = session.query_property(BaseQuery)
 
 
+async def SessionMiddleware(  # noqa: N802
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+):
+    """Session middleware.
+
+    This middleware removes the session after the request is finished.
+    """
+    response = await call_next(request)
+    logging.debug("[middleware] Removing database session...")
+    session.remove()
+    return response
+
+
 @asynccontextmanager
 async def lifespan(app):
     """Get a session lifespan."""
     try:
-        logging.debug("Creating database session...")
         yield session
     finally:
-        logging.debug("Closing database session...")
+        logging.debug("[lifespan] Removing database session...")
         session.remove()
