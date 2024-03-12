@@ -86,7 +86,7 @@ class ASGIScope(TypedDict):
     type: str
 
 
-class SocketIOConnectionInfo(TypedDict):
+class SocketIOEnviron(TypedDict):
     """WebSocket connection info."""
 
     HTTP_CONNECTION: str
