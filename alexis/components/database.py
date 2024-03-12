@@ -144,7 +144,7 @@ class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
     @property
     def uid(self):
         """Return the UUID of the model as a string."""
-        return self.id.hex
+        return str(self.id)
 
     def __repr__(self):
         """Return a string representation of the model."""
