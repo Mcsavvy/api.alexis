@@ -201,8 +201,16 @@ class BaseModel(Base, ModelErrorMixin):  # type: ignore[valid-type, misc]
         )
 
 
+__context = "app"
+
+
+def scopefunc():
+    """Returns the current app context."""
+    return __context
+
+
 db = SQLAlchemy(settings.SQLALCHEMY_DATABASE_URI)
-session = scoped_session(db._session)
+session = scoped_session(db._session, scopefunc=scopefunc)
 Base.query = session.query_property(BaseQuery)
 
 
