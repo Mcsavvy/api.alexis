@@ -2,12 +2,13 @@
 
 from collections.abc import Callable
 from contextlib import (
+    AbstractAsyncContextManager,
     AsyncExitStack,
     _AsyncGeneratorContextManager,
     asynccontextmanager,
 )
 from pathlib import Path
-from typing import Any, AsyncContextManager, TypedDict
+from typing import Any, TypedDict
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.applications import BaseHTTPMiddleware
@@ -16,6 +17,7 @@ from langserve import add_routes  # type: ignore[import-untyped]
 
 from alexis import logging
 from alexis.config import settings
+from alexis.sentry import setup_sentry
 from alexis.utils import cast_fn, load_entry_point
 
 DESCRIPTION = """The ALX Learners Copilot."""
@@ -25,7 +27,7 @@ DESCRIPTION = """The ALX Learners Copilot."""
 async def _lifespan(app: "AlexisApp"):
     """Lifespan handler."""
     exit_stack = AsyncExitStack()
-    handlers: list[Callable[[AlexisApp], AsyncContextManager[Any]]] = []
+    handlers: list[Callable[[AlexisApp], AbstractAsyncContextManager[Any]]] = []
     for fn in settings.get("LIFESPAN_HANDLERS", []):
         logging.debug(f"Loading lifespan handler: {fn}")
         handler: Callable[
@@ -145,6 +147,7 @@ async def api_documentation(request: Request):
 
 def create_app() -> AlexisApp:
     """Create the Alexis App."""
+    setup_sentry(settings)
     app = AlexisApp(docs_url=None, redoc_url=None, lifespan=_lifespan)
     app.add_api_route("/", redirect_root_to_docs, include_in_schema=False)
     app.add_api_route("/docs", api_documentation, include_in_schema=False)

@@ -3,6 +3,7 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sentry_sdk import set_user
 
 from alexis.models import User
 
@@ -33,4 +34,5 @@ async def is_authenticated(token: str = Depends(get_token)) -> "User":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
+    set_user({"id": user.uid, "username": user.name, "email": user.email})
     return user

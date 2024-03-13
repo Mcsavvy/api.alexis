@@ -2,6 +2,7 @@
 from collections.abc import Callable
 from typing import Any, Protocol, TextIO, TypedDict
 
+import sentry_sdk
 from fastapi import APIRouter, FastAPI
 from socketio import (  # type: ignore[import]
     ASGIApp,
@@ -21,11 +22,27 @@ class AsyncServer(_AsyncServer):
 
     async def _trigger_event(self, event, namespace, *args):
         """Trigger an event."""
-        result = await super()._trigger_event(event, namespace, *args)
-        if result is not self.not_handled:
-            logging.debug("[socketio] Removing database session...")
-            session.remove()
-        return result
+        with sentry_sdk.configure_scope() as scope:
+            scope.set_transaction_name(f"socketio.{event}")
+            scope.set_tag("socketio.namespace", namespace)
+            scope.set_context(
+                "socketio",
+                {
+                    "event": event,
+                    "namespace": namespace,
+                    "args": args,
+                },
+            )
+            try:
+                result = await super()._trigger_event(event, namespace, *args)
+            except Exception as e:
+                logging.error(f"Error triggering event: {event}", exc_info=e)
+                scope.capture_exception(e)
+                raise
+            if result is not self.not_handled:
+                logging.debug("[socketio] Removing database session...")
+                session.remove()
+            return result
 
 
 sio = AsyncServer(
