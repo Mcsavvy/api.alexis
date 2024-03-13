@@ -6,10 +6,27 @@ from fastapi import APIRouter, FastAPI
 from socketio import (  # type: ignore[import]
     ASGIApp,
     AsyncNamespace,
-    AsyncServer,
+)
+from socketio import (
+    AsyncServer as _AsyncServer,
 )
 
+from alexis import logging
+from alexis.components.database import session
 from alexis.config import settings
+
+
+class AsyncServer(_AsyncServer):
+    """Socketio server with session management."""
+
+    async def _trigger_event(self, event, namespace, *args):
+        """Trigger an event."""
+        result = await super()._trigger_event(event, namespace, *args)
+        if result is not self.not_handled:
+            logging.debug("[socketio] Removing database session...")
+            session.remove()
+        return result
+
 
 sio = AsyncServer(
     async_mode="asgi",
