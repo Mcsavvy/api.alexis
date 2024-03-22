@@ -44,6 +44,9 @@ LIFESPAN_HANDLERS = [
     "alexis.components.database:lifespan",
 ]
 
+# Database
+MONGO_DATABASE = "alexis"
+
 # Logging
 LOG_HANDLER_CLASS = "rich.logging.RichHandler"
 LOG_SHOW_TIME = false
