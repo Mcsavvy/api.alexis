@@ -3,16 +3,27 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum as _Enum
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Union, cast
 from uuid import UUID, uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
+from mongoengine import (  # type: ignore[import]
+    CASCADE,
+    BooleanField,
+    DateTimeField,
+    EnumField,
+    IntField,
+    ReferenceField,
+    StringField,
+)
 from sqlalchemy import Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from alexis import logging
+from alexis.auth.models.user import MUser
 from alexis.components import BaseModel, session
+from alexis.components.database import BaseDocument, BaseDocumentMeta
 
 if TYPE_CHECKING:
     from alexis.auth.models import User
@@ -28,6 +39,9 @@ class ChatType(str, _Enum):
 
     QUERY = "query"
     RESPONSE = "response"
+
+
+MChatT = Union["MChat", UUID, str]
 
 
 class Chat(BaseModel):
@@ -109,6 +123,236 @@ class Chat(BaseModel):
         instance = super().create(False, **kwargs)
         if instance.content and not instance.cost:
             instance.compute_token_cost(commit)
+        return instance
+
+
+class MThread(BaseDocument):
+    """Thread model based on mongoengine."""
+
+    meta = BaseDocumentMeta | {
+        "collection": "threads",
+    }
+    title: str = StringField(max_length=80, required=True)
+    project: int = IntField(required=True)
+    user: MUser = ReferenceField(
+        MUser, required=True, reverse_delete_rule=CASCADE
+    )
+    closed: bool = BooleanField(default=False)
+
+    def __repr__(self):
+        """Get the string representation of the thread."""
+        num_chats = len(self.chats)
+        return "Thread[{}](user={}, chats={}, closed={})".format(
+            self.uid[:6],
+            self.user.name,
+            num_chats,
+            "✔" if self.closed else "✗",
+        )
+
+    @property
+    def chats(self):
+        """Get all chats in the thread."""
+        return MChat.objects.filter(thread=self)
+
+    @property
+    def cost(self) -> int:
+        """Total cost of all messages."""
+        return sum(chat.cost for chat in self.chats)
+
+    @property
+    def chat_count(self) -> int:
+        """Number of messages in the thread."""
+        return len(self.chats)
+
+    @property
+    def first_chat(self) -> MChat | None:
+        """Get the first chat in the thread."""
+        return self.chats.filter(previous_chat=None).one()
+
+    @property
+    def last_chat(self) -> MChat | None:
+        """Get the last chat in the thread."""
+        return self.chats.filter(next_chat=None).one()
+
+    @classmethod
+    def create(cls, commit=True, **kwargs):
+        """Create a thread."""
+        from alexis.components import redis
+
+        if "project" not in kwargs:
+            raise cls.CreateError("Project is required")
+        project_id = kwargs["project"]
+        project = redis.get_project(str(project_id))
+        if project is None:
+            raise cls.CreateError(f"Project '{project_id}' does not exist")
+        if not kwargs.get("title"):
+            kwargs["title"] = f"{project.title}"
+        return super().create(commit, **kwargs)
+
+    def add_chat(
+        self,
+        content: str,
+        chat_type: ChatType,
+        previous_chat: MChatT | None = None,
+        cost: int = 0,
+        commit=True,
+        **attrs,
+    ) -> MChat:
+        """Add a chat to the thread."""
+        previous_chat = previous_chat or self.last_chat
+        if isinstance(previous_chat, UUID | str):
+            previous_chat = MChat.objects.get(previous_chat)
+        logging.debug(
+            "adding %s after chat %s in thread %s: %s",
+            chat_type.value.lower(),
+            previous_chat.uid[:6] if previous_chat else "none",
+            self.uid[:6],
+            content[:20],
+        )
+        new_chat = MChat.create(
+            content=content,
+            chat_type=chat_type,
+            previous_chat=previous_chat,
+            next_chat=None,
+            cost=cost,
+            thread=self,
+            **attrs,
+        )
+        if commit:
+            self.save()
+        return new_chat
+
+    def add_query(
+        self,
+        content: str,
+        cost: int = 0,
+        previous_chat: MChatT | None = None,
+        commit=True,
+        **attrs,
+    ) -> MChat:
+        """Add a query to the thread."""
+        return self.add_chat(
+            content=content,
+            chat_type=ChatType.QUERY,
+            cost=cost,
+            previous_chat=previous_chat,
+            commit=commit,
+            **attrs,
+        )
+
+    def add_response(
+        self,
+        content: str,
+        cost: int = 0,
+        previous_chat: MChatT | None = None,
+        commit=True,
+        **attrs,
+    ) -> MChat:
+        """Add a response to the thread."""
+        return self.add_chat(
+            content=content,
+            chat_type=ChatType.RESPONSE,
+            cost=cost,
+            previous_chat=previous_chat,
+            commit=commit,
+            **attrs,
+        )
+
+    def iter_chats(self):
+        """Iterate over all chats in the thread."""
+        chat = self.first_chat
+        while chat:
+            yield chat
+            chat = chat.next_chat
+
+
+class MChat(BaseDocument):
+    """Chat model based on mongoengine."""
+
+    meta = BaseDocumentMeta | {
+        "ordering": ["order"],
+        "collection": "chats",
+    }
+
+    content: str = StringField(required=True)
+    cost: int = IntField(default=0)
+    chat_type: ChatType = EnumField(ChatType, required=True)
+    sent_time = DateTimeField(default=utcnow, required=True)
+    thread: ReferenceField = ReferenceField(
+        MThread, required=True, reverse_delete_rule=CASCADE
+    )
+    next_chat: MChat | None = ReferenceField(
+        "self",
+        reverse_delete_rule=CASCADE,
+        required=False,
+        null=True,
+        default=None,
+    )
+    previous_chat: MChat | None = ReferenceField(
+        "self",
+        reverse_delete_rule=CASCADE,
+        required=False,
+        null=True,
+        default=None,
+    )
+
+    def __repr__(self):
+        """Get the string representation of the chat."""
+        return "{}[{}](user={}, cost={}, thread={}, prev={}, next={})".format(
+            self.chat_type.title(),
+            self.uid[:8],
+            self.thread.user.name,
+            self.cost,
+            self.thread.uid[:8],
+            self.previous_chat.uid[:8] if self.previous_chat else "none",
+            self.next_chat.uid[:8] if self.next_chat else "none",
+        )
+
+    def to_message(self) -> BaseMessage:
+        """Convert the chat to a message."""
+        if self.chat_type == ChatType.QUERY:
+            return HumanMessage(
+                content=self.content,
+                id=self.uid,
+            )
+        return AIMessage(
+            id=self.uid,
+            content=self.content,
+        )
+
+    def compute_token_cost(self, commit=True):
+        """Get the token count of the chat."""
+        logging.debug("computing token cost for chat %s", self.uid[:8])
+        llm = ChatOpenAI()
+        message = self.to_message()
+        token_count = llm.get_num_tokens_from_messages([message])
+        self.cost = token_count
+        if commit:
+            self.save()
+
+    @classmethod
+    def create(cls, commit: bool = True, **kwargs):
+        """Create a chat."""
+        previous_chat: MChat | None = kwargs.pop("previous_chat", None)
+        if previous_chat and previous_chat.next_chat:
+            # this is not the last chat in the thread
+            # perform doubly-linked list insertion
+            next_chat = previous_chat.next_chat
+            instance = super().create(False, **kwargs)
+
+            instance.next_chat = next_chat
+            next_chat.previous_chat = instance
+            next_chat.save()
+        else:
+            instance = super().create(False, **kwargs)
+        instance.previous_chat = previous_chat
+        if previous_chat:
+            previous_chat.next_chat = instance
+            previous_chat.save()
+        if instance.content and not instance.cost:
+            instance.compute_token_cost(commit)
+        elif commit:
+            instance.save()
         return instance
 
 
@@ -274,121 +518,3 @@ class Thread(BaseModel):  # type: ignore
             if not redis.project_exists(str(project), []):
                 raise self.UpdateError(f"Project '{project}' does not exist")
         return super().update(commit, **kwargs)
-
-
-class ThreadMixin:
-    """Mixin class for handling threads."""
-
-    @property
-    def total_chat_cost(self):
-        """Total cost of all messages."""
-        return sum(trd.cost for trd in self.threads)  # type: ignore
-
-    def create_thread(
-        self, project: int, title: str, closed=False, commit=True
-    ):
-        """Create a new thread."""
-        logging.debug(
-            "creating thread for project %d: %r for %s %s",
-            project,
-            title,
-            self.type.value,  # type: ignore
-            self.name,  # type: ignore
-        )
-        return Thread.create(
-            project=project,
-            title=title,
-            user=self,
-            closed=closed,
-            commit=commit,
-        )
-
-    def add_message(
-        self,
-        content: str,
-        chat_type: ChatType,
-        cost: int = 0,
-        previous_chat: Chat | None = None,
-        thread_id: UUID | None = None,
-        commit=True,
-        **attrs,
-    ) -> Chat:
-        """Add a message to the thread."""
-        if thread_id is None:
-            if previous_chat:
-                thread = previous_chat.thread
-            else:
-                raise RuntimeError("thread_id or previous_chat must be given")
-        else:
-            try:
-                thread = Thread.get(thread_id)
-            except Thread.DoesNotExistError:
-                raise ValueError("thread_id is invalid")
-            if thread.user != self:
-                raise ValueError("thread not owned by user")
-        return thread.add_chat(
-            content=content,
-            chat_type=chat_type,
-            cost=cost,
-            previous_chat=previous_chat,
-            commit=commit,
-            **attrs,
-        )
-
-    def add_query(
-        self,
-        content: str,
-        cost: int = 0,
-        previous_chat: Chat | None = None,
-        thread_id: UUID | None = None,
-        commit=True,
-        **attrs,
-    ) -> Chat:
-        """Add a query to the thread."""
-        return self.add_message(
-            content,
-            ChatType.QUERY,
-            cost,
-            previous_chat,
-            thread_id,
-            commit,
-            **attrs,
-        )
-
-    def add_response(
-        self,
-        content: str,
-        cost: int = 0,
-        previous_chat: Chat | None = None,
-        thread_id: UUID | None = None,
-        commit=True,
-        **attrs,
-    ) -> Chat:
-        """Add a response to the thread."""
-        return self.add_message(
-            content,
-            ChatType.RESPONSE,
-            cost,
-            previous_chat,
-            thread_id,
-            commit,
-            **attrs,
-        )
-
-    def clear_chats(self, threads: list[Thread]):
-        """Clear all messages in specified threads."""
-        logging.debug(
-            "clearing %d threads for %s %r",
-            len(threads),
-            self.type.value,  # type: ignore
-            self.name,  # type: ignore
-        )
-        for thread in threads:
-            thread.clear()
-
-    def get_active_threads(self) -> list[Thread]:
-        """Get all active threads."""
-        return Thread.query.filter(
-            Thread.user_id == self.id,  # type: ignore
-            Thread.closed == False,  # noqa: E712
-        ).all()
