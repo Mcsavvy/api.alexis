@@ -31,6 +31,7 @@ httpx-sse = "^0.4.0"
 python-socketio = "^5.11.1"
 alembic = "^1.13.1"
 sentry-sdk = {extras = ["fastapi"], version = "^1.41.0"}
+mongoengine = "^0.28.2"
 
 
 [tool.poetry.group.dev.dependencies]

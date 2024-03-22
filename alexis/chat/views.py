@@ -5,9 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
-from alexis.components import redis, session
+from alexis.chat.models import MThread
+from alexis.components import redis
 from alexis.components.auth import is_authenticated
-from alexis.models import Project, Thread, User
+from alexis.models import MUser, Project
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 project = APIRouter(prefix="/project", tags=["project"])
@@ -74,35 +75,31 @@ class ChatMessageSchema(BaseModel):
 
 @router.get("/threads/{project_id}", response_model=list[ThreadSchema])
 async def get_threads(
-    project_id: int, user: User = Depends(is_authenticated)
-) -> list[Thread]:
+    project_id: int, user: MUser = Depends(is_authenticated)
+) -> list[MThread]:
     """Get all threads for a project."""
-    threads = (
-        session.query(Thread)
-        .filter(Thread.user_id == user.id, Thread.project == project_id)
-        .all()
-    )
-    return threads
+    threads = MThread.objects.filter(user=user, project=project_id)
+    return list(threads)
 
 
 @router.get("/threads/{thread_id}", response_model=ThreadSchema)
 async def get_thread(
-    thread_id: UUID, user: User = Depends(is_authenticated)
-) -> Thread:
+    thread_id: UUID, user: MUser = Depends(is_authenticated)
+) -> MThread:
     """Get a thread."""
     try:
-        thread = Thread.get(thread_id)
-    except Thread.DoesNotExistError:
+        thread = MThread.objects.get(thread_id)
+    except MThread.DoesNotExist:
         raise HTTPException(status_code=404, detail="Thread not found")
-    if thread.user_id != user.id:
+    if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
     return thread
 
 
 @router.post("/threads", response_model=ThreadSchema)
 async def create_thread(
-    data: ThreadCreateSchema, user: User = Depends(is_authenticated)
-) -> Thread:
+    data: ThreadCreateSchema, user: MUser = Depends(is_authenticated)
+) -> MThread:
     """Create a thread."""
     project_id = str(data.project)
     project = redis.get_project(project_id)
@@ -111,9 +108,8 @@ async def create_thread(
             status_code=404, detail=f"Project {project_id} not found"
         )
     title = data.title or project.title
-
-    thread = Thread.create(
-        user_id=user.id, project=data.project, title=title, commit=True
+    thread = MThread.create(
+        user=user, project=data.project, title=title, commit=True
     )
     return thread
 
@@ -121,15 +117,28 @@ async def create_thread(
 @router.get(
     "/threads/{thread_id}/messages", response_model=list[ChatMessageSchema]
 )
-async def get_messages(thread_id: UUID, user: User = Depends(is_authenticated)):
+async def get_messages(
+    thread_id: UUID, user: MUser = Depends(is_authenticated)
+):
     """Get all messages for a thread."""
     try:
-        thread = Thread.get(thread_id)
-    except Thread.DoesNotExistError:
+        thread = MThread.objects.get(thread_id)
+    except MThread.DoesNotExist:
         raise HTTPException(status_code=404, detail="Thread not found")
-    if thread.user_id != user.id:
+    if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-    messages = thread.chats
+    messages = list(thread.iter_chats())
+    order = 0
+    for message in messages:
+        message.thread_id = thread_id
+        message.previous_chat_id = (
+            message.previous_chat.id if message.previous_chat else None
+        )
+        message.next_chat_id = (
+            message.next_chat.id if message.next_chat else None
+        )
+        message.order = order
+        order += 1
     return messages
 
 

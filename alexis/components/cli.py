@@ -18,7 +18,15 @@ def shell():
     from alexis.components.database import db, session
     from alexis.config import settings
     from alexis.logging import get_logger
-    from alexis.models import Chat, ChatType, Thread, User
+    from alexis.models import (
+        Chat,
+        ChatType,
+        MChat,
+        MThread,
+        MUser,
+        Thread,
+        User,
+    )
 
     app = create_app()
     logger = get_logger()
@@ -32,6 +40,9 @@ def shell():
         "Chat": Chat,
         "ChatType": ChatType,
         "Thread": Thread,
+        "MUser": MUser,
+        "MChat": MChat,
+        "MThread": MThread,
         "redis": redis,
         "settings": settings,
         "logger": logger,
