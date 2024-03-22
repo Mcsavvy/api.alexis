@@ -6,8 +6,9 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, model_validator
 
 from alexis import logging
+from alexis.auth.models.user import MUser
 from alexis.chat.chains import AlexisChain
-from alexis.chat.models import Thread
+from alexis.chat.models import MThread
 from alexis.components.socketio import SocketIOEnviron, sio
 
 
@@ -80,9 +81,8 @@ class QueryPayload(BaseModel):
                 raise ValueError(
                     "Either thread_id or project_id must be provided"
                 )
-            thread = Thread.create(
-                project=int(data["project_id"]), user_id=UUID(data["user_id"])
-            )
+            user = MUser.objects.get(data["user_id"])
+            thread = MThread.create(project=int(data["project_id"]), user=user)
             data["thread_id"] = thread.id
         return data
 
@@ -143,7 +143,7 @@ async def query(sid: str, data: dict):
     chain = AlexisChain.with_types(
         input_type=Input, output_type=str
     ).with_config(config)
-    thread = Thread.get(payload.thread_id)
+    thread = MThread.objects.get(payload.thread_id)
     await sio.emit(
         "chat_info",
         {

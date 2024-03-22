@@ -4,9 +4,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from alexis.components import session
 from alexis.components.auth import is_authenticated
-from alexis.models import User
+from alexis.models import MUser
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,21 +40,17 @@ class AuthTokenSchema(BaseModel):
 async def authenticate(data: CreateUserSchema) -> AuthTokenSchema:
     """Authenticate."""
     if data.kinde_user:
-        user = (
-            session.query(User)
-            .filter(User.kinde_user == data.kinde_user)
-            .first()
-        )
+        user = MUser.objects.filter(kinde_user=data.kinde_user).one()
         if user:
             return AuthTokenSchema(token=user.create_token())
     try:
-        user = User.create(**data.model_dump())
-    except User.CreateError as err:
+        user = MUser.create(**data.model_dump())
+    except MUser.CreateError as err:
         raise HTTPException(status_code=400, detail=str(err))
     return AuthTokenSchema(token=user.create_token())  # type: ignore[union-attr]
 
 
 @router.get("/me", response_model=UserDetailSchema)
-async def get_me(user: User = Depends(is_authenticated)) -> UserDetailSchema:
+async def get_me(user: MUser = Depends(is_authenticated)) -> UserDetailSchema:
     """Get me."""
     return user

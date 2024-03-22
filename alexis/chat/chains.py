@@ -21,7 +21,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai.chat_models import ChatOpenAI
 
 from ..components import redis
-from ..models import Project, Task, Thread, User
+from ..models import MThread, MUser, Project, Task
 from .callbacks import StreamCallbackHandler  # noqa: F401, F403
 from .memory import (  # noqa: F401, F403
     fetch_messages_from_thread,
@@ -150,18 +150,18 @@ async def GetChainContext(  # noqa: N802
     thread_id: str = metadata["thread_id"]
 
     try:
-        user = User.get(user_id)
-    except User.DoesNotExistError:
+        user = MUser.objects.get(user_id)
+    except MUser.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"User '{user_id}' not found"
         )
     try:
-        thread = Thread.get(thread_id)
-    except Thread.DoesNotExistError:
+        thread = MThread.objects.get(thread_id)
+    except MThread.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"Thread '{thread_id}' not found"
         )
-    if thread.user_id != user.id:
+    if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     project_id = str(thread.project)
@@ -234,7 +234,7 @@ AlexisChain = RunnableWithMessageHistory(
 )
 
 
-async def get_current_user_from_request(request: Request) -> User:
+async def get_current_user_from_request(request: Request) -> MUser:
     """Get the current user for the chain."""
     from alexis.components.auth import get_token, is_authenticated, security
 
@@ -244,12 +244,12 @@ async def get_current_user_from_request(request: Request) -> User:
     return user
 
 
-async def get_current_user_from_config(config: dict) -> User:
+async def get_current_user_from_config(config: dict) -> MUser:
     """Get the current user for the chain."""
     user_id: str = config["configurable"].get("user_id")
     try:
-        user = User.get(user_id)
-    except User.DoesNotExistError:
+        user = MUser.objects.get(user_id)
+    except MUser.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"User '{user_id}' not found"
         )
