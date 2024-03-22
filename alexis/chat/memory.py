@@ -2,21 +2,15 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import (  # noqa: F401,UP035
-    Any,
-    Iterable,
-    List,
-    overload,
-)
+from typing import Any, Iterable, List, overload  # noqa: F401,UP035
 from uuid import UUID
 
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from alexis import logging
-from alexis.chat.models import Chat
+from alexis.chat.models import MChat, MThread
 from alexis.components import session
-from alexis.models import Thread
 
 
 @dataclass
@@ -28,7 +22,7 @@ class ThreadChatMessageHistory(BaseChatMessageHistory):
     response_id: str | None = None
     max_token_limit: int = 3000
     messages: list[BaseMessage] = field(default_factory=list)
-    prev: Chat | None = field(default=None, repr=False, init=False)
+    prev: MChat | None = field(default=None, repr=False, init=False)
 
     def __post_init__(self) -> None:
         """Initialize the thread chat message history."""
@@ -37,14 +31,14 @@ class ThreadChatMessageHistory(BaseChatMessageHistory):
     def load_messages(self) -> None:
         """Load messages."""
         try:
-            thread = Thread.get(self.thread_id)
-        except Thread.DoesNotExistError:
+            thread = MThread.objects.get(self.thread_id)
+        except MThread.DoesNotExist:
             self.messages = []
             return
         chats = thread.chats
         buffer: list[BaseMessage] = []
         token_count = 0
-        for chat in chats[::-1]:
+        for chat in reversed(chats):
             cost = chat.cost
             if not cost and chat.content.strip():
                 chat.compute_token_cost()
@@ -75,8 +69,8 @@ class ThreadChatMessageHistory(BaseChatMessageHistory):
             # prevent reuse of same query ID
             self.query_id = None
         try:
-            thread = Thread.get(self.thread_id)
-        except Thread.DoesNotExistError:
+            thread = MThread.objects.get(self.thread_id)
+        except MThread.DoesNotExist:
             return
         self.prev = thread.add_query(**chat_data)
 
@@ -100,8 +94,8 @@ class ThreadChatMessageHistory(BaseChatMessageHistory):
             # prevent reuse of same response ID
             self.response_id = None
         try:
-            thread = Thread.get(self.thread_id)
-        except Thread.DoesNotExistError:
+            thread = MThread.objects.get(self.thread_id)
+        except MThread.DoesNotExist:
             return
         self.prev = thread.add_response(**chat_data)
 
@@ -121,10 +115,10 @@ class ThreadChatMessageHistory(BaseChatMessageHistory):
     def clear(self) -> None:
         """Clear the messages."""
         try:
-            thread = Thread.get(self.thread_id)
+            thread = MThread.objects.get(self.thread_id)
             thread.clear()
             session.refresh(thread)
-        except Thread.DoesNotExistError:
+        except MThread.DoesNotExist:
             pass
         self.load_messages()
 
