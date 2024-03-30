@@ -107,9 +107,8 @@ async def create_thread(
         raise HTTPException(
             status_code=404, detail=f"Project {project_id} not found"
         )
-    title = data.title or project.title
     thread = MThread.create(
-        user=user, project=data.project, title=title, commit=True
+        user=user, project=data.project, commit=True
     )
     return thread
 

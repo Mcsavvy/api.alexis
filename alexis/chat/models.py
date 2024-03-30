@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, backref, mapped_column, relationship
 
 from alexis import logging
 from alexis.auth.models.user import MUser
+from alexis.chat.gen_name import gen_name
 from alexis.components import BaseModel, session
 from alexis.components.database import BaseDocument, BaseDocumentMeta
 
@@ -175,18 +176,20 @@ class MThread(BaseDocument):
         return self.chats.filter(next_chat=None).one()
 
     @classmethod
-    def create(cls, commit=True, **kwargs):
+    def create(cls, commit: bool=True, **kwargs):
         """Create a thread."""
         from alexis.components import redis
 
         if "project" not in kwargs:
             raise cls.CreateError("Project is required")
         project_id = kwargs["project"]
-        project = redis.get_project(str(project_id))
-        if project is None:
+        user: MUser = kwargs["user"]
+        project_exists = redis.project_exists(str(project_id), [])
+        if not project_exists:
             raise cls.CreateError(f"Project '{project_id}' does not exist")
-        if not kwargs.get("title"):
-            kwargs["title"] = f"{project.title}"
+        title: str = kwargs.setdefault("title", gen_name())
+        if MThread.objects.filter(user=user, title=title).count():
+            raise cls.CreateError(f"Thread '{title}' already exists")
         return super().create(commit, **kwargs)
 
     def add_chat(
