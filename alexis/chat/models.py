@@ -187,9 +187,11 @@ class MThread(BaseDocument):
         project_exists = redis.project_exists(str(project_id), [])
         if not project_exists:
             raise cls.CreateError(f"Project '{project_id}' does not exist")
-        title: str = kwargs.setdefault("title", gen_name())
-        if MThread.objects.filter(user=user, title=title).count():
-            raise cls.CreateError(f"Thread '{title}' already exists")
+        if "title" not in kwargs:
+            title = gen_name()
+            while MThread.objects.filter(user=user, title=title).count():
+                title = gen_name()
+            kwargs["title"] = title
         return super().create(commit, **kwargs)
 
     def add_chat(
