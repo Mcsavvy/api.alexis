@@ -21,9 +21,6 @@ def shell():
     from alexis.models import (
         Chat,
         ChatType,
-        MChat,
-        MThread,
-        MUser,
         Thread,
         User,
     )
@@ -40,9 +37,6 @@ def shell():
         "Chat": Chat,
         "ChatType": ChatType,
         "Thread": Thread,
-        "MUser": MUser,
-        "MChat": MChat,
-        "MThread": MThread,
         "redis": redis,
         "settings": settings,
         "logger": logger,

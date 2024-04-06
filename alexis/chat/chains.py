@@ -21,7 +21,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai.chat_models import ChatOpenAI
 
 from ..components import redis
-from ..models import MThread, MUser, Project, Task
+from ..models import Project, Task, Thread, User
 from .callbacks import StreamCallbackHandler  # noqa: F401, F403
 from .memory import (  # noqa: F401, F403
     fetch_messages_from_thread,
@@ -150,14 +150,14 @@ async def GetChainContext(  # noqa: N802
     thread_id: str = metadata["thread_id"]
 
     try:
-        user = MUser.objects.get(user_id)
-    except MUser.DoesNotExist:
+        user = User.objects.get(user_id)
+    except User.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"User '{user_id}' not found"
         )
     try:
-        thread = MThread.objects.get(thread_id)
-    except MThread.DoesNotExist:
+        thread = Thread.objects.get(thread_id)
+    except Thread.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"Thread '{thread_id}' not found"
         )
@@ -234,7 +234,7 @@ AlexisChain = RunnableWithMessageHistory(
 )
 
 
-async def get_current_user_from_request(request: Request) -> MUser:
+async def get_current_user_from_request(request: Request) -> User:
     """Get the current user for the chain."""
     from alexis.components.auth import get_token, is_authenticated, security
 
@@ -244,12 +244,12 @@ async def get_current_user_from_request(request: Request) -> MUser:
     return user
 
 
-async def get_current_user_from_config(config: dict) -> MUser:
+async def get_current_user_from_config(config: dict) -> User:
     """Get the current user for the chain."""
     user_id: str = config["configurable"].get("user_id")
     try:
-        user = MUser.objects.get(user_id)
-    except MUser.DoesNotExist:
+        user = User.objects.get(user_id)
+    except User.DoesNotExist:
         raise HTTPException(
             status_code=404, detail=f"User '{user_id}' not found"
         )

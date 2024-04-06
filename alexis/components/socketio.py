@@ -13,7 +13,6 @@ from socketio import (
 )
 
 from alexis import logging
-from alexis.components.database import session
 from alexis.config import settings
 
 
@@ -39,9 +38,6 @@ class AsyncServer(_AsyncServer):
                 logging.error(f"Error triggering event: {event}", exc_info=e)
                 scope.capture_exception(e)
                 raise
-            if result is not self.not_handled:
-                logging.debug("[socketio] Removing database session...")
-                session.remove()
             return result
 
 
