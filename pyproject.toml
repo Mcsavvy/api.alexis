@@ -10,7 +10,7 @@ readme = "README.md"
 alexcli = "alexis.components.cli:cli"
 
 [tool.poetry.dependencies]
-python = "3.10.13"
+python = "3.10.12"
 python-dotenv = "^1.0.1"
 uvicorn = {extras = ["standard"], version = "^0.27.1"}
 fastapi = "^0.109.2"
@@ -22,7 +22,6 @@ langchain-openai = "^0.0.7"
 dynaconf = "^3.2.4"
 ipython = "^8.22.1"
 rich = "^13.7.0"
-sqlalchemy = "^2.0.27"
 pyjwt = "^2.8.0"
 redis = {extras = ["hiredis"], version = "^5.0.2"}
 langsmith = "^0.1.10"
@@ -30,7 +29,7 @@ mysqlclient = "^2.2.4"
 httpx-sse = "^0.4.0"
 python-socketio = "^5.11.1"
 alembic = "^1.13.1"
-sentry-sdk = {extras = ["fastapi"], version = "^1.41.0"}
+sentry-sdk = {extras = ["pymongo"], version = "^1.44.1"}
 mongoengine = "^0.28.2"
 
 
