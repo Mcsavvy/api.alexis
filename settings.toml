@@ -11,9 +11,8 @@ ROUTERS = [
     "alexis.chat.views:project"
 ]
 
-MIDDLEWARES = [
-    "alexis.components.database:SessionMiddleware",
-]
+
+DEFAULT_STORAGE = "alexis.components.storage:MongoStorage"
 
 
 SENTRY_INTEGRATIONS = [
