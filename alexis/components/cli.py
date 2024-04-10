@@ -15,7 +15,8 @@ def shell():
 
     from alexis.app import create_app
     from alexis.components import redis
-    from alexis.components.database import db, session
+    from alexis.components.contexts import ProjectContext, TaskContext
+    from alexis.components.storage import default_storage
     from alexis.config import settings
     from alexis.logging import get_logger
     from alexis.models import (
@@ -31,8 +32,6 @@ def shell():
     shell = InteractiveShellEmbed()
     local_ns = {
         "app": app,
-        "db": db,
-        "session": session,
         "User": User,
         "Chat": Chat,
         "ChatType": ChatType,
@@ -40,33 +39,8 @@ def shell():
         "redis": redis,
         "settings": settings,
         "logger": logger,
+        "storage": default_storage,
+        "ProjectContext": ProjectContext,
+        "TaskContext": TaskContext,
     }
     shell(local_ns=local_ns)
-
-
-@cli.group(name="db")
-def db():
-    """Database commands."""
-    pass
-
-
-@db.command(name="create-all")
-def create_all():
-    """Create all tables."""
-    from alexis.auth import models  # noqa
-    from alexis.chat import models  # noqa
-    from alexis.components.database import db
-
-    db.create_all()
-    click.echo("All tables created.")
-
-
-@db.command(name="drop-all")
-def drop_all():
-    """Drop all tables."""
-    from alexis.auth import models  # noqa
-    from alexis.chat import models  # noqa
-    from alexis.components.database import db
-
-    db.drop_all()
-    click.echo("All tables dropped.")

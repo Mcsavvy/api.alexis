@@ -24,3 +24,4 @@ package-lock.json
 package.json
 alexis.log
 copy_redis_data.sh
+.ipynb_checkpoints

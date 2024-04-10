@@ -20,86 +20,17 @@ from langchain_core.runnables import (  # noqa: F401, F403
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai.chat_models import ChatOpenAI
 
-from ..components import redis
-from ..models import Project, Task, Thread, User
+from alexis.components.contexts import (
+    ContextNotFound,
+    ProjectContext,
+)
+
+from ..models import Thread, User
 from .callbacks import StreamCallbackHandler  # noqa: F401, F403
 from .memory import (  # noqa: F401, F403
     fetch_messages_from_thread,
     get_history_from_thread,
 )
-
-PROJECT_SHORT_FMT = "{title} (`id={id}`)"
-
-PROJECT_FMT = """
-## {title}  (`id={id}`)
-{description}
-
-### Tasks
-{tasks}
-""".strip()
-
-TASK_SHORT_FMT = """
-#### {number}. {title} (`id={id}`)
-[details not included]
-""".strip()
-
-TASK_FMT = """
-#### {number}. {title}  (`id={id}`)
-{description}
-""".strip()
-
-
-def format_project(project: Project, tasks: list[str]):
-    """Convert a project to a markdown string."""
-    data = project.model_dump()
-    tasks_formatted = "\n\n".join(
-        [format_task(t, t.id in tasks) for t in project.tasks]
-    )
-    data["tasks"] = tasks_formatted
-    return PROJECT_FMT.format(**data)
-
-
-def format_task(task: Task, include_details: bool = False):
-    """Convert a task to a markdown string."""
-    if include_details:
-        return TASK_FMT.format(**task.model_dump())
-    else:
-        return TASK_SHORT_FMT.format(**task.model_dump())
-
-
-def fetch_project(project_id: str) -> Project:
-    """Fetch a project."""
-    project = redis.get_project(project_id)
-    if not project:
-        raise HTTPException(
-            status_code=404, detail=f"Project '{project_id}' not found"
-        )
-    return project
-
-
-def fetch_task(project: str | Project, task_id: str) -> Task:
-    """Fetch a task."""
-    if isinstance(project, str):
-        project = fetch_project(project)
-    project = cast(Project, project)
-    for task in project.tasks:
-        if task.id == task_id:
-            break
-    else:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Task '{task_id}' not found in project '{project.id}'",
-        )
-    return task
-
-
-def load_project_context(
-    project: Project, task_ids: list[str] | None = None
-) -> str:
-    """Format a project and task."""
-    context = format_project(project, task_ids or [])
-    return context
-
 
 model = ChatOpenAI()
 parser = StrOutputParser()
@@ -121,15 +52,24 @@ class ContextOutput(TypedDict):
     context: str
 
 
-def extract_tasks(query: str, project: Project) -> list[str]:
+def load_project_context(
+    project: ProjectContext, task_ids: list[int] | None = None, query: str = ""
+) -> str:
+    """Format a project and task."""
+    show_tasks = any(kw in query.lower() for kw in ["task"])
+    context = project.format(show_tasks=show_tasks, included_tasks=task_ids)
+    return context
+
+
+def extract_tasks(query: str, project: ProjectContext) -> list[int]:
     """Extract task numbers from a query."""
     import re
 
-    task_inclusion = re.compile(r"#(\d+)", re.IGNORECASE | re.MULTILINE)
-    task_nums: list[str] = task_inclusion.findall(query)
-    task_ids: list[str] = []
-    if not task_nums:
-        return task_ids
+    task_inclusion = re.compile(r"task #?(?P=<task_no>\d+)", re.I | re.M)
+    task_nums: list[str] = []
+    task_ids: list[int] = []
+    for match in task_inclusion.finditer(query):
+        task_nums.append(match.group("task_no"))
     for task in project.tasks:
         if str(task.number) in task_nums:
             task_ids.append(task.id)
@@ -164,8 +104,12 @@ async def GetChainContext(  # noqa: N802
     if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    project_id = str(thread.project)
-    project = fetch_project(project_id)
+    try:
+        project = ProjectContext.load(thread.project)
+    except ContextNotFound:
+        raise HTTPException(
+            status_code=404, detail=f"Project '{thread.project}' not found"
+        )
     included_tasks = extract_tasks(data["query"], project)
     context = load_project_context(project, included_tasks)
     return {
