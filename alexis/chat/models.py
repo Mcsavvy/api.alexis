@@ -20,6 +20,7 @@ from mongoengine import (  # type: ignore[import]
 
 from alexis import logging
 from alexis.auth.models.user import User
+from alexis.components.contexts import ContextNotFound, ProjectContext
 from alexis.components.database import BaseDocument, BaseDocumentMeta
 
 if TYPE_CHECKING:
@@ -92,13 +93,12 @@ class Thread(BaseDocument):
     @classmethod
     def create(cls, commit=True, **kwargs):
         """Create a thread."""
-        from alexis.components import redis
-
         if "project" not in kwargs:
             raise cls.CreateError("Project is required")
-        project_id = kwargs["project"]
-        project = redis.get_project(str(project_id))
-        if project is None:
+        project_id = int(kwargs["project"])
+        try:
+            project = ProjectContext.load(project_id, include_tasks=False)
+        except ContextNotFound:
             raise cls.CreateError(f"Project '{project_id}' does not exist")
         if not kwargs.get("title"):
             kwargs["title"] = f"{project.title}"
