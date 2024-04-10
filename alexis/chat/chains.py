@@ -65,7 +65,7 @@ def extract_tasks(query: str, project: ProjectContext) -> list[int]:
     """Extract task numbers from a query."""
     import re
 
-    task_inclusion = re.compile(r"task #?(?P=<task_no>\d+)", re.I | re.M)
+    task_inclusion = re.compile(r"task #?(?P<task_no>\d+)", re.I | re.M)
     task_nums: list[str] = []
     task_ids: list[int] = []
     for match in task_inclusion.finditer(query):
