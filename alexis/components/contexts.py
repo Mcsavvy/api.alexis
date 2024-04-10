@@ -136,7 +136,7 @@ class ProjectContext(BaseContext):
                 tasks_fmt += "\n" + task.format() + "\n"
         if tasks_fmt:
             fmt += "\n" + "# Tasks" + tasks_fmt
-        return "##"
+        return fmt
 
     def save(self):
         """Save this project to storage."""
