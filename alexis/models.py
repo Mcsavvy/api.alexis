@@ -1,8 +1,8 @@
 """Alexis data models."""
 from pydantic import BaseModel, Field
 
-from alexis.auth.models import MUser, User
-from alexis.chat.models import Chat, ChatType, MChat, MThread, Thread
+from alexis.auth.models import User
+from alexis.chat.models import Chat, ChatType, Thread
 
 
 class Task(BaseModel):
@@ -34,13 +34,10 @@ class Project(BaseModel):
 
 
 __all__ = [
-    "Chat",
     "ChatType",
-    "Thread",
-    "User",
     "Task",
     "Project",
-    "MUser",
-    "MChat",
-    "MThread",
+    "User",
+    "Chat",
+    "Thread",
 ]

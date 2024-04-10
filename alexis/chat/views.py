@@ -2,13 +2,17 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel
 
-from alexis.chat.models import MThread
-from alexis.components import redis
+from alexis.chat.models import Thread
 from alexis.components.auth import is_authenticated
-from alexis.models import MUser, Project
+from alexis.components.contexts import (
+    ProjectContext,
+    TaskContext,
+    preprocess_project,
+)
+from alexis.models import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 project = APIRouter(prefix="/project", tags=["project"])
@@ -17,9 +21,9 @@ project = APIRouter(prefix="/project", tags=["project"])
 class ProjectExistsQuery(BaseModel):
     """Project exists query."""
 
-    project: str
+    project: int
     """Project id."""
-    tasks: list[str]
+    tasks: list[int]
     """List of task ids."""
 
 
@@ -32,8 +36,35 @@ class ProjectExistsResponse(BaseModel):
     """List of task exists."""
 
 
-class ProjectStoreQuery(Project):
+class ProjectTask(BaseModel):
+    """Project task."""
+
+    id: int
+    """Task id."""
+    title: str
+    """Task title."""
+    number: int
+    """Task number."""
+    description: str
+    """Task description."""
+
+
+class ProjectStoreQuery(BaseModel):
     """Project store query."""
+
+    id: int
+    """Project id."""
+    title: str
+    """Project title."""
+    description: str
+    """Project description."""
+    tasks: list[ProjectTask]
+    """List of tasks."""
+
+    class Config:
+        """Pydantic config."""
+
+        from_attributes = True
 
 
 class ThreadSchema(BaseModel):
@@ -75,21 +106,21 @@ class ChatMessageSchema(BaseModel):
 
 @router.get("/threads/{project_id}", response_model=list[ThreadSchema])
 async def get_threads(
-    project_id: int, user: MUser = Depends(is_authenticated)
-) -> list[MThread]:
+    project_id: int, user: User = Depends(is_authenticated)
+) -> list[Thread]:
     """Get all threads for a project."""
-    threads = MThread.objects.filter(user=user, project=project_id)
+    threads = Thread.objects.filter(user=user, project=project_id)
     return list(threads)
 
 
 @router.get("/threads/{thread_id}", response_model=ThreadSchema)
 async def get_thread(
-    thread_id: UUID, user: MUser = Depends(is_authenticated)
-) -> MThread:
+    thread_id: UUID, user: User = Depends(is_authenticated)
+) -> Thread:
     """Get a thread."""
     try:
-        thread = MThread.objects.get(thread_id)
-    except MThread.DoesNotExist:
+        thread = Thread.objects.get(thread_id)
+    except Thread.DoesNotExist:
         raise HTTPException(status_code=404, detail="Thread not found")
     if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -98,17 +129,17 @@ async def get_thread(
 
 @router.post("/threads", response_model=ThreadSchema)
 async def create_thread(
-    data: ThreadCreateSchema, user: MUser = Depends(is_authenticated)
-) -> MThread:
+    data: ThreadCreateSchema, user: User = Depends(is_authenticated)
+) -> Thread:
     """Create a thread."""
-    project_id = str(data.project)
-    project = redis.get_project(project_id)
-    if not project:
+    project_id = int(data.project)
+    if not ProjectContext.exists(project_id, [])[0]:
         raise HTTPException(
             status_code=404, detail=f"Project {project_id} not found"
         )
-    thread = MThread.create(
-        user=user, project=data.project, commit=True
+    title = data.title
+    thread = Thread.create(
+        user=user, project=data.project, title=title, commit=True
     )
     return thread
 
@@ -116,13 +147,11 @@ async def create_thread(
 @router.get(
     "/threads/{thread_id}/messages", response_model=list[ChatMessageSchema]
 )
-async def get_messages(
-    thread_id: UUID, user: MUser = Depends(is_authenticated)
-):
+async def get_messages(thread_id: UUID, user: User = Depends(is_authenticated)):
     """Get all messages for a thread."""
     try:
-        thread = MThread.objects.get(thread_id)
-    except MThread.DoesNotExist:
+        thread = Thread.objects.get(thread_id)
+    except Thread.DoesNotExist:
         raise HTTPException(status_code=404, detail="Thread not found")
     if thread.user.id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -145,12 +174,30 @@ async def get_messages(
 @project.post("/exists", response_model=ProjectExistsResponse)
 async def project_exists(project: ProjectExistsQuery):
     """Check if project exists."""
-    result = redis.project_exists(project=project.project, tasks=project.tasks)
-    return {"project": result[0], "tasks": result[1]}
+    result = ProjectContext.exists(project.project, project.tasks)
+    return dict(zip(("project", "tasks"), result))
 
 
 @project.post("/save")
-async def save_project(project: ProjectStoreQuery):
+async def save_project(project: ProjectStoreQuery, bg_tasks: BackgroundTasks):
     """Store project."""
-    redis.store_project(project)
+    tasks = project.tasks
+    project_is_saved = ProjectContext.exists(project.id, tasks=[])[0]
+    if project_is_saved:
+        proj_ctx = ProjectContext.load(project.id, include_tasks=True)
+    else:
+        project_dump = project.model_dump()
+        project_dump["tasks"] = []
+        proj_ctx = ProjectContext(**project_dump)
+        bg_tasks.add_task(preprocess_project, project=proj_ctx.dump())
+    for task in tasks:
+        task_exists = TaskContext.exists(task.id, project.id)
+        if task_exists:
+            task_ctx = TaskContext.load(task.id)
+        else:
+            task_ctx = TaskContext(**task.model_dump())
+        if task_ctx not in proj_ctx.tasks:
+            proj_ctx.tasks.append(task_ctx)
+    proj_ctx.tasks.sort(key=lambda x: x.number)
+    proj_ctx.save()
     return Response(status_code=201)

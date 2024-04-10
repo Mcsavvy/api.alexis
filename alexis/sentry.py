@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
+from sentry_sdk.integrations.pymongo import PyMongoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from alexis import logging as logger
 
@@ -24,7 +24,7 @@ def get_centry_integration(config: "Dynaconf"):
         "fastapi": FastApiIntegration(
             transaction_style=config.get("SENTRY_TRANSACTION_STYLE", "url")
         ),
-        "sqlalchemy": SqlalchemyIntegration(),
+        "mongodb": PyMongoIntegration(),
         "redis": RedisIntegration(
             max_data_size=config.get("SENTRY_REDIS_MAX_DATA_SIZE", 1024)
         ),

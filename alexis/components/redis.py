@@ -88,14 +88,14 @@ def delete_project(project_id: str):
         client.delete(task)
 
 
-def get_all_projects(limit: int = 100) -> list[str]:
+def get_all_projects(limit: int | None = None) -> list[str]:
     """Get all projects ids."""
     import re
 
     key: bytes
     projects: list[str] = []
     for key in client.keys("project:*[0-9]"):  # type: ignore
-        if len(projects) >= limit:
+        if limit and len(projects) >= limit:
             break
         if re.match(r"^project:[0-9]+$", key.decode()):
             id = key.decode().split(":")[-1]
@@ -103,10 +103,10 @@ def get_all_projects(limit: int = 100) -> list[str]:
     return projects
 
 
-def get_all_tasks(project_id: str, limit: int = 100) -> list[str]:
+def get_all_tasks(project_id: str, limit: int | None = None) -> list[str]:
     """Get all tasks ids."""
     tasks: list[bytes] = client.keys(f"project:{project_id}:task:*")  # type: ignore
-    return [t.decode().split(":")[-1] for t in tasks[:limit]]
+    return [t.decode().split(":")[-1] for t in tasks[: limit or len(tasks)]]
 
 
 class SocketData(TypedDict):
