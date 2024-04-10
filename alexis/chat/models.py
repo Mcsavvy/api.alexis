@@ -20,7 +20,7 @@ from mongoengine import (  # type: ignore[import]
 
 from alexis import logging
 from alexis.auth.models.user import User
-from alexis.components.contexts import ContextNotFound, ProjectContext
+from alexis.chat.gen_name import gen_name
 from alexis.components.database import BaseDocument, BaseDocumentMeta
 
 if TYPE_CHECKING:
@@ -91,17 +91,16 @@ class Thread(BaseDocument):
         return self.chats.filter(next_chat=None).one()
 
     @classmethod
-    def create(cls, commit=True, **kwargs):
+    def create(cls, commit: bool = True, **kwargs):
         """Create a thread."""
         if "project" not in kwargs:
             raise cls.CreateError("Project is required")
-        project_id = int(kwargs["project"])
-        try:
-            project = ProjectContext.load(project_id, include_tasks=False)
-        except ContextNotFound:
-            raise cls.CreateError(f"Project '{project_id}' does not exist")
-        if not kwargs.get("title"):
-            kwargs["title"] = f"{project.title}"
+        user = kwargs.get("user")
+        if "title" not in kwargs:
+            title = gen_name()
+            while Thread.objects.filter(user=user, title=title).count():
+                title = gen_name()
+            kwargs["title"] = title
         return super().create(commit, **kwargs)
 
     def add_chat(
