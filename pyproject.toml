@@ -41,6 +41,7 @@ ruff = "^0.1.13"
 black = "^23.12.1"
 isort = "^5.13.2"
 ipykernel = "^6.29.3"
+notebook = "^7.1.2"
 
 [build-system]
 requires = ["poetry-core"]
