@@ -15,7 +15,8 @@ def shell():
 
     from alexis.app import create_app
     from alexis.components import redis
-    from alexis.components.database import db, session
+    from alexis.components.contexts import ProjectContext, TaskContext
+    from alexis.components.storage import default_storage
     from alexis.config import settings
     from alexis.logging import get_logger
     from alexis.models import (
@@ -38,5 +39,8 @@ def shell():
         "redis": redis,
         "settings": settings,
         "logger": logger,
+        "storage": default_storage,
+        "ProjectContext": ProjectContext,
+        "TaskContext": TaskContext,
     }
     shell(local_ns=local_ns)
