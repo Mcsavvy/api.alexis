@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from alexis.chat.models import Thread
 from alexis.components.auth import is_authenticated
 from alexis.components.contexts import (
-    ProjectContext,
-    TaskContext,
+    Project,
+    Task,
     preprocess_project,
 )
 from alexis.models import User
@@ -133,7 +133,7 @@ async def create_thread(
 ) -> Thread:
     """Create a thread."""
     project_id = int(data.project)
-    if not ProjectContext.exists(project_id, [])[0]:
+    if not Project.exists(project_id, [])[0]:
         raise HTTPException(
             status_code=404, detail=f"Project {project_id} not found"
         )
@@ -174,7 +174,7 @@ async def get_messages(thread_id: UUID, user: User = Depends(is_authenticated)):
 @project.post("/exists", response_model=ProjectExistsResponse)
 async def project_exists(project: ProjectExistsQuery):
     """Check if project exists."""
-    result = ProjectContext.exists(project.project, project.tasks)
+    result = Project.exists(project.project, project.tasks)
     return dict(zip(("project", "tasks"), result))
 
 
@@ -182,20 +182,20 @@ async def project_exists(project: ProjectExistsQuery):
 async def save_project(project: ProjectStoreQuery, bg_tasks: BackgroundTasks):
     """Store project."""
     tasks = project.tasks
-    project_is_saved = ProjectContext.exists(project.id, tasks=[])[0]
+    project_is_saved = Project.exists(project.id, tasks=[])[0]
     if project_is_saved:
-        proj_ctx = ProjectContext.load(project.id, include_tasks=True)
+        proj_ctx = Project.load(project.id, include_tasks=True)
     else:
         project_dump = project.model_dump()
         project_dump["tasks"] = []
-        proj_ctx = ProjectContext(**project_dump)
+        proj_ctx = Project(**project_dump)
         bg_tasks.add_task(preprocess_project, project=proj_ctx.dump())
     for task in tasks:
-        task_exists = TaskContext.exists(task.id, project.id)
+        task_exists = Task.exists(task.id, project.id)
         if task_exists:
-            task_ctx = TaskContext.load(task.id)
+            task_ctx = Task.load(task.id)
         else:
-            task_ctx = TaskContext(**task.model_dump())
+            task_ctx = Task(**task.model_dump())
         if task_ctx not in proj_ctx.tasks:
             proj_ctx.tasks.append(task_ctx)
     proj_ctx.tasks.sort(key=lambda x: x.number)

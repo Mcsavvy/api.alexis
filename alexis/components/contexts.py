@@ -20,25 +20,6 @@ class ContextNotFound(ContextError):  # noqa: N818
     """Context not found."""
 
 
-class Project(TypedDict):
-    """Project details."""
-
-    id: int
-    title: str
-    description: str
-    tasks: list[int]
-
-
-class Task(TypedDict):
-    """Task details."""
-
-    id: int
-    project: int
-    title: str
-    number: int
-    description: str
-
-
 class BaseContext(ABC):
     """Base context class."""
 
@@ -73,18 +54,18 @@ class BaseContext(ABC):
 
 
 @dataclass(eq=False, repr=False)
-class ProjectContext(BaseContext):
+class Project(BaseContext[ProjectDump]):
     """A project details."""
 
     collection: ClassVar[str] = "projects"
     id: int
-    tasks: list["TaskContext"] = field(default_factory=list)
+    tasks: list["Task"] = field(default_factory=list)
     title: str = ""
     description: str = ""
 
     def __eq__(self, other: object) -> bool:
         """Check if two projects are equal."""
-        if not isinstance(other, ProjectContext):
+        if not isinstance(other, Project):
             return NotImplemented
         return self.id == other.id
 
@@ -97,7 +78,7 @@ class ProjectContext(BaseContext):
         """Check if a project exists."""
         project_exists = storage.get(cls.collection, id=id) is not None
         tasks_exist = [
-            TaskContext.exists(task, project=id) is not None for task in tasks
+            Task.exists(task, project=id) is not None for task in tasks
         ]
         return project_exists, tasks_exist
 
@@ -179,7 +160,7 @@ class ProjectContext(BaseContext):
 
 
 @dataclass(eq=False, repr=False)
-class TaskContext(BaseContext):
+class Task(BaseContext):
     """A task details."""
 
     id: int
@@ -191,7 +172,7 @@ class TaskContext(BaseContext):
 
     def __eq__(self, other: object) -> bool:
         """Check if two tasks are equal."""
-        if not isinstance(other, TaskContext):
+        if not isinstance(other, Task):
             return NotImplemented
         return self.id == other.id and self.project == other.project
 
@@ -305,8 +286,8 @@ async def preprocess_project(project: Project) -> Project:
 
 __all__ = [
     "BaseContext",
-    "ProjectContext",
-    "TaskContext",
+    "Project",
+    "Task",
     "ContextNotFound",
     "summarize_project_description",
     "preprocess_project",
@@ -332,16 +313,16 @@ def migrate():
             logging.error(f"Project '{proj_id}' could not be loaded.")
             p_failed += 1
             continue
-        if ProjectContext.exists(proj_id, [])[0]:
+        if Project.exists(proj_id, [])[0]:
             logging.warning(f"Project '{proj_id}' already exists.")
             try:
-                proj_ctx = ProjectContext.load(proj_id, include_tasks=True)
+                proj_ctx = Project.load(proj_id, include_tasks=True)
             except ContextNotFound:
                 logging.error(f"Project '{proj_id}' could not be loaded.")
                 p_failed += 1
                 continue
         else:
-            proj_ctx = ProjectContext(
+            proj_ctx = Project(
                 id=proj_id,
                 title=proj.title,
                 description=proj.description,
@@ -355,11 +336,11 @@ def migrate():
             t_count += 1
             task_id = int(task.id)
             logging.info(f"Migrating task '{task_id}' ({t_count}/{t_total})")
-            if TaskContext.exists(task_id, project=proj_id):
+            if Task.exists(task_id, project=proj_id):
                 logging.warning(f"Task '{task_id}' already exists.")
-                task_ctx = TaskContext.load(task_id)
+                task_ctx = Task.load(task_id)
             else:
-                task_ctx = TaskContext(
+                task_ctx = Task(
                     id=task_id,
                     project=proj_id,
                     title=task.title,
