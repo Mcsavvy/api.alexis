@@ -14,6 +14,8 @@ redis_client = Redis.from_url(settings.REDIS_URL)
 mongo_client: MongoClient = MongoClient(settings.MONGO_URI)
 mongo_db = mongo_client.get_database(settings.MONGO_DATABASE)
 
+Projection = list[str] | None
+
 
 def _(value) -> str:
     """Try to decode bytes."""
@@ -28,7 +30,7 @@ class Storage(ABC):
         self,
         collection: str,
         id: Any | None = None,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> dict | None:
         """Get an object from the storage."""
@@ -53,7 +55,7 @@ class Storage(ABC):
         collection: str,
         limit: int | None = None,
         skip: int = 0,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> Iterable[dict]:
         """Get all objects from the storage."""
@@ -68,21 +70,17 @@ class InMemoryStorage(Storage):
         """Initialize the storage."""
         self._storage = {}
 
-    def _apply_projection(
-        self, obj: dict, only: list[str] | dict[str, bool] | None
-    ) -> dict:
+    def _apply_projection(self, obj: dict, only: Projection) -> dict:
         """Apply projection on the object."""
         if only is None:
             return obj
-        if isinstance(only, dict):
-            return {key: obj[key] for key in obj if only.get(key, False)}
         return {key: obj[key] for key in only if key in obj}
 
     def get(
         self,
         collection: str,
         id: Any | None = None,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> dict | None:
         """Get an object from the storage."""
@@ -94,7 +92,9 @@ class InMemoryStorage(Storage):
 
     def set(self, obj: dict, collection: str, id: Any) -> None:
         """Set an object in the storage."""
-        self._storage[f"{collection}:{id}"] = obj
+        old_obj = self._storage.get(f"{collection}:{id}", {})
+        old_obj.update(obj)
+        self._storage[f"{collection}:{id}"] = old_obj
 
     def delete(self, collection: str, id: Any) -> None:
         """Delete an object from the storage."""
@@ -119,7 +119,7 @@ class InMemoryStorage(Storage):
         collection: str,
         limit: int | None = None,
         skip: int = 0,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> Iterable[dict]:
         """Get all objects from the storage."""
@@ -146,25 +146,23 @@ class RedisHashStorage(Storage):
             for key, value in obj.items()  # type: ignore
         }
 
-    def _apply_projection(
-        self, obj: dict, only: list[str] | dict[str, bool] | None
-    ) -> dict:
+    def _apply_projection(self, obj: dict, only: Projection) -> dict:
         """Apply projection on the object."""
         if only is None:
             return obj
-        if isinstance(only, dict):
-            return {key: obj[key] for key in obj if only.get(key, False)}
         return {key: obj[key] for key in only if key in obj}
 
     def _set_object(self, key: str, obj: dict) -> None:
         """Set the object in the storage."""
-        redis_client.hset(key, mapping=obj)
+        old_obj = self._get_object(key)
+        old_obj.update(obj)
+        redis_client.hset(key, mapping=old_obj)
 
     def get(
         self,
         collection: str,
         id: Any | None = None,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> dict | None:
         """Get an object from the storage."""
@@ -210,7 +208,7 @@ class RedisHashStorage(Storage):
         collection: str,
         limit: int | None = None,
         skip: int = 0,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> Iterable[dict]:
         """Get all objects from the storage."""
@@ -232,7 +230,10 @@ class RedisJsonStorage(RedisHashStorage):
 
     def _set_object(self, key: str, obj: dict) -> None:
         """Set the object in the storage."""
-        redis_client.set(key, json.dumps(obj))
+        # perform partial updates if the object already exists
+        old_obj = self._get_object(key)
+        old_obj.update(obj)
+        redis_client.set(key, json.dumps(old_obj))
 
 
 class MongoStorage(Storage):
@@ -242,7 +243,7 @@ class MongoStorage(Storage):
         self,
         collection: str,
         id: Any | None = None,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> dict | None:
         """Get an object from the storage."""
@@ -250,12 +251,16 @@ class MongoStorage(Storage):
             query["_id"] = id
         obj = mongo_db[collection].find_one(query, projection=only)
         if obj:
-            obj.pop("_id")
+            obj.pop("_id", None)
         return obj
 
     def set(self, obj: dict, collection: str, id: Any) -> None:
         """Set an object in the storage."""
-        mongo_db[collection].replace_one({"_id": id}, obj, upsert=True)
+        if mongo_db[collection].count_documents({"_id": id}):
+            mongo_db[collection].update_one({"_id": id}, {"$set": obj})
+        else:
+            obj["_id"] = id
+            mongo_db[collection].insert_one(obj)
 
     def delete(self, collection: str, id: Any) -> None:
         """Delete an object from the storage."""
@@ -282,7 +287,7 @@ class MongoStorage(Storage):
         collection: str,
         limit: int | None = None,
         skip: int = 0,
-        only: list[str] | dict[str, bool] | None = None,
+        only: Projection = None,
         **query,
     ) -> Iterable[dict]:
         """Get all objects from the storage."""
@@ -292,7 +297,7 @@ class MongoStorage(Storage):
         if limit:
             db_query = db_query.limit(limit)
         for obj in db_query:
-            obj.pop("_id")
+            obj.pop("_id", None)
             yield obj
 
 
