@@ -363,13 +363,13 @@ async def summarize_project_description(description: str) -> str:
     return await ProjectSummaryChain.ainvoke(description)
 
 
-async def preprocess_project(project: ProjectDump) -> ProjectDump:
+async def preprocess_project(project: Project):
     """Preprocess project description to minimize cost."""
     from alexis.tools.preprocessors import ProjectDescriptionPreprocessor
 
-    description: str = project["description"]
+    description: str = project.description
     preprocessor = ProjectDescriptionPreprocessor(description)
-    logging.info(f"Preprocessing project '{project['id']}' description...")
+    logging.info(f"Preprocessing project '{project.id}'")
     logging.info(f"Token count (before): {count_tokens(description)}")
     preprocessed = preprocessor.preprocess()
     token_count = count_tokens(preprocessed)
@@ -378,8 +378,8 @@ async def preprocess_project(project: ProjectDump) -> ProjectDump:
         logging.info("Project description too long. Summarizing...")
         preprocessed = await summarize_project_description(description)
         logging.info(f"Token count (after): {count_tokens(preprocessed)}")
-    project["description"] = preprocessed
-    return project
+    project.description = preprocessed
+    project.save()
 
 
 __all__ = [
