@@ -22,7 +22,7 @@ from langchain_openai.chat_models import ChatOpenAI
 
 from alexis.components.contexts import (
     ContextNotFound,
-    ProjectContext,
+    Project,
 )
 
 from ..models import Thread, User
@@ -53,7 +53,7 @@ class ContextOutput(TypedDict):
 
 
 def load_project_context(
-    project: ProjectContext, task_ids: list[int] | None = None, query: str = ""
+    project: Project, task_ids: list[int] | None = None, query: str = ""
 ) -> str:
     """Format a project and task."""
     show_tasks = any(kw in query.lower() for kw in ["task"])
@@ -61,7 +61,7 @@ def load_project_context(
     return context
 
 
-def extract_tasks(query: str, project: ProjectContext) -> list[int]:
+def extract_tasks(query: str, project: Project) -> list[int]:
     """Extract task numbers from a query."""
     import re
 
@@ -105,7 +105,7 @@ async def GetChainContext(  # noqa: N802
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
-        project = ProjectContext.load(thread.project)
+        project = Project.load(thread.project)
     except ContextNotFound:
         raise HTTPException(
             status_code=404, detail=f"Project '{thread.project}' not found"
