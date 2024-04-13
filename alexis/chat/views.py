@@ -182,16 +182,18 @@ async def project_exists(project: ProjectExistsQuery):
 async def save_project(project: ProjectStoreQuery, bg_tasks: BackgroundTasks):
     """Store project."""
     tasks = project.tasks
-    project_is_saved = Project.exists(project.id, tasks=[])[0]
-    if project_is_saved:
-        proj_ctx = Project.load(project.id, include_tasks=True)
+    project_exists, tasks_exists = Project.exists(
+        project.id, [task.id for task in tasks]
+    )
+    if project_exists:
+        proj_ctx = Project.load(project.id)
     else:
         project_dump = project.model_dump()
         project_dump["tasks"] = []
         proj_ctx = Project(**project_dump)
-        bg_tasks.add_task(preprocess_project, project=proj_ctx.dump())
-    for task in tasks:
-        task_exists = Task.exists(task.id, project.id)
+        bg_tasks.add_task(preprocess_project, project=proj_ctx)
+    for idx, task in enumerate(tasks):
+        task_exists = tasks_exists[idx]
         if task_exists:
             task_ctx = Task.load(task.id)
         else:
