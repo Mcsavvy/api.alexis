@@ -224,6 +224,37 @@ class Project(BaseContext):
         """Delete this project from the database."""
         storage.delete(self.collection, self.id)
 
+    def json_schema(self) -> dict[str, Any]:
+        """Return a json schema for this project."""
+        return {
+            "type": "object",
+            "description": "The current project.",
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "number": {"type": "integer"},
+                            "description": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        }
+
+    def get_json(self) -> dict[str, Any]:
+        """Return a json representation of this project."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "tasks": [task.get_json() for task in self.tasks],
+        }
+
 
 @dataclass(eq=False, repr=False)
 class Task(BaseContext):
@@ -333,6 +364,16 @@ class Task(BaseContext):
     def delete(self):
         """Delete this task from the database."""
         storage.delete(self.collection, self.id)
+
+    def get_json(self) -> dict[str, Any]:
+        """Return a json representation of this task."""
+        return {
+            "id": self.id,
+            "project": self.project,
+            "title": self.title,
+            "number": self.number,
+            "description": self.description,
+        }
 
 
 async def summarize_project_description(description: str) -> str:
