@@ -130,6 +130,8 @@ class BaseDocument(Document, DocumentErrorMixin, metaclass=DocumentMetaClass):
     """Base document for MongoDB."""
 
     meta = BaseDocumentMeta | {"abstract": True}
+    DoesNotExist: ClassVar[type[Exception]]
+    """Document does not exist error."""
 
     id: UUID = UUIDField(primary_key=True, default=uuid4)
     created_at: datetime = DateTimeField(default=utcnow)

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from dynaconf import Dynaconf  # type: ignore[import]
 
 
-def get_centry_integration(config: "Dynaconf"):
+def get_sentry_integrations(config: "Dynaconf"):
     """Get Sentry integrations."""
     for _logger in config.SENTRY_IGNORED_LOGGERS:
         ignore_logger(_logger)
@@ -55,7 +55,7 @@ def setup_sentry(config: "Dynaconf"):
         return
     sentry_sdk.init(
         dsn=config.SENTRY_DSN,
-        integrations=get_centry_integration(config),
+        integrations=get_sentry_integrations(config),
         traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
         profiles_sample_rate=config.SENTRY_PROFILES_SAMPLE_RATE,
         environment=config.current_env,
