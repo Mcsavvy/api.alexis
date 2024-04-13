@@ -119,11 +119,12 @@ class Project(BaseContext):
         project_exists = (
             storage.get(cls.collection, id=id, only=["id"]) is not None
         )
-        tasks_exist = [
-            storage.get(Task.collection, id=task_id, project=id, only=["id"])
-            is not None
-            for task_id in tasks
-        ]
+        existing_tasks: set[int] = set()
+        for res in storage.all(
+            Task.collection, only=["id"], project=id, id={"$in": tasks}
+        ):
+            existing_tasks.add(res["id"])
+        tasks_exist = [task_id in existing_tasks for task_id in tasks]
         return project_exists, tasks_exist
 
     @classmethod
