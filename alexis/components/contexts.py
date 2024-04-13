@@ -116,9 +116,13 @@ class Project(BaseContext):
     @classmethod
     def exists(cls, id: int, tasks: list[int]) -> tuple[bool, list[bool]]:
         """Check if a project exists."""
-        project_exists = storage.get(cls.collection, id=id) is not None
+        project_exists = (
+            storage.get(cls.collection, id=id, only=["id"]) is not None
+        )
         tasks_exist = [
-            Task.exists(task, project=id) is not None for task in tasks
+            storage.get(Task.collection, id=task_id, project=id, only=["id"])
+            is not None
+            for task_id in tasks
         ]
         return project_exists, tasks_exist
 
