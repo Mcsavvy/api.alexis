@@ -1,4 +1,4 @@
 """The Alexis package."""
-from pathlib import Path
+from .app import get_version
 
-__version__ = (Path(__file__).parent / "VERSION").read_text().strip()
+__version__ = get_version()
