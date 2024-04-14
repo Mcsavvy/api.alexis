@@ -18,6 +18,10 @@ install:	## Install the project dependencies.
 run:		## Run the project.
 	uvicorn --factory alexis.app:create_app --reload
 
+.PHONY: release
+release:	## Release the project.
+	@./release.sh
+
 .PHONY: test
 test:		## Run the tests.
 	export ALEXIS_ENV=test
