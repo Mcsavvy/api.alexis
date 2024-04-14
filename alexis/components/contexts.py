@@ -286,7 +286,7 @@ class Task(BaseContext):
         if task is None:
             raise ContextNotFound(
                 f"Task('{id}') not found"
-                + ("for project '{project}'." if project else ".")
+                + (" for project '{project}'." if project else ".")
             )
         for _field in excluded_fields:
             task.pop(_field, None)  # type: ignore[misc]
