@@ -47,3 +47,12 @@ def utcnow() -> datetime:
 def count_tokens(text):
     """Count the number of tokens in a text."""
     return len(encoding.encode(text))
+
+
+def get_version() -> str:
+    """Get the version from pyproject.toml."""
+    from pathlib import Path
+
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    version = pyproject.read_text().split("version = ")[1].split("\n")[0]
+    return version.strip('"').strip()

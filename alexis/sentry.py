@@ -48,7 +48,9 @@ def get_sentry_integrations(config: "Dynaconf"):
 
 def setup_sentry(config: "Dynaconf"):
     """Initialize Sentry."""
-    from alexis import __version__
+    from alexis.utils import get_version
+
+    version = get_version()
 
     if not config.get("SENTRY_DSN"):  # pragma: no cover
         logger.warning("SENTY_DSN is not set. Sentry is disabled.")
@@ -59,7 +61,7 @@ def setup_sentry(config: "Dynaconf"):
         traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
         profiles_sample_rate=config.SENTRY_PROFILES_SAMPLE_RATE,
         environment=config.current_env,
-        release=f"Alexis@{__version__}",
+        release=f"Alexis@{version}",
         debug=config.get("SENTRY_DEBUG", config.DEBUG),
         max_breadcrumbs=config.SENTRY_MAX_BREADCRUMBS,
         attach_stacktrace=config.SENTRY_ATTACH_STACKTRACE,

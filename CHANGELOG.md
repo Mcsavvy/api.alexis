@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2024-04-14
+
+### 🚜 Refactor
+
+- Update get_version function to a separate module
+
+## [0.2.2] - 2024-04-14
+
+### 🚜 Refactor
+
+- Update version retrieval in __init__.py
+
 ## [0.2.1] - 2024-04-14
 
 ### 🐛 Bug Fixes
