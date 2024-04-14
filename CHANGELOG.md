@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2024-04-14
+
+### 🐛 Bug Fixes
+
+- Update GitHub token in release workflow
+- Handle  exception when loading tasks
+
 ## [0.2.0] - 2024-04-14
 
 ### 🚀 Features
