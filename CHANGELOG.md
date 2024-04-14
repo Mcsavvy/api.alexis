@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2024-04-14
+
+### 🚜 Refactor
+
+- Update get_version function to a separate module
+
 ## [0.2.2] - 2024-04-14
 
 ### 🚜 Refactor
