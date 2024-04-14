@@ -143,7 +143,10 @@ class Project(BaseContext):
         tasks = []
         if "tasks" not in excluded_fields:
             for task_id in project["tasks"]:
-                task = Task.load(task_id, project=id)
+                try:
+                    task = Task.load(task_id, project=id)
+                except ContextNotFound:
+                    task = None
                 if task is not None:
                     tasks.append(task)
         project["tasks"] = tasks
