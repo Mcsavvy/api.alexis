@@ -18,7 +18,7 @@ from langserve import add_routes  # type: ignore[import-untyped]
 from alexis import logging
 from alexis.config import settings
 from alexis.sentry import setup_sentry
-from alexis.utils import cast_fn, load_entry_point
+from alexis.utils import cast_fn, get_version, load_entry_point
 
 DESCRIPTION = """The ALX Learners Copilot."""
 
@@ -38,13 +38,6 @@ async def _lifespan(app: "AlexisApp"):
         for fn in handlers:
             await exit_stack.enter_async_context(fn(app))
         yield
-
-
-def get_version() -> str:
-    """Get the version from pyproject.toml."""
-    pyproject = Path(__file__).parent.parent / "pyproject.toml"
-    version = pyproject.read_text().split("version = ")[1].split("\n")[0]
-    return version.strip('"').strip()
 
 
 class AlexisApp(FastAPI):

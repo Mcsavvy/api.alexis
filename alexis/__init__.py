@@ -1,4 +1,4 @@
 """The Alexis package."""
-from .app import get_version
+from alexis.utils import get_version
 
 __version__ = get_version()
