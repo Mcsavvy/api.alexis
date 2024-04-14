@@ -40,6 +40,13 @@ async def _lifespan(app: "AlexisApp"):
         yield
 
 
+def get_version() -> str:
+    """Get the version from pyproject.toml."""
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    version = pyproject.read_text().split("version = ")[1].split("\n")[0]
+    return version.strip('"').strip()
+
+
 class AlexisApp(FastAPI):
     """Alexis App."""
 
@@ -47,7 +54,7 @@ class AlexisApp(FastAPI):
     def __init__(self, **kwargs):
         """Initialize the Alexis App."""
         self.settings = settings
-        version = (Path(__file__).parent / "VERSION").read_text().strip()
+        version = get_version()
         description = f"{DESCRIPTION}"
         title = "Alexis"
         kwargs.setdefault("title", title)
