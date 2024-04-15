@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "alexis"
-version = "0.2.3"
+version = "0.2.4"
 description = "Alexis: The ALX learner's copilot"
 authors = ["David Mcsavvy <davemcsavvii@gmail.com>"]
 license = "MIT"

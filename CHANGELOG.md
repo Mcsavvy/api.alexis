@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4] - 2024-04-15
+
+### 🚜 Refactor
+
+- Improve task saving efficiency
+
 ## [0.2.3] - 2024-04-14
 
 ### 🚜 Refactor
