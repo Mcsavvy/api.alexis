@@ -120,7 +120,7 @@ class Project(BaseContext):
             storage.get(cls.collection, id=id, only=["id"]) is not None
         )
         existing_tasks: set[int] = set()
-        for res in storage.all(
+        for res in storage.get_many(
             Task.collection, only=["id"], project=id, id={"$in": tasks}
         ):
             existing_tasks.add(res["id"])
@@ -181,8 +181,7 @@ class Project(BaseContext):
             self.collection,
             self.id,
         )
-        for task in self.tasks:
-            task.save()
+        Task.save_many(self.tasks)
 
     def dump(self) -> ProjectDump:
         """Deserialize the project."""
@@ -208,7 +207,7 @@ class Project(BaseContext):
     ) -> list[Self]:
         """List all projects in the database."""
         projects: list[Self] = []
-        for project in storage.all(
+        for project in storage.get_many(
             cls.collection, limit=limit, skip=skip, only=only, **query
         ):
             fields = ["id", "title", "description", "tasks"]
@@ -307,6 +306,18 @@ class Task(BaseContext):
             self.id,
         )
 
+    @classmethod
+    def save_many(cls, tasks: list[Self]):
+        """Save many tasks."""
+        storage.set_many(
+            [
+                task.dump()  # type: ignore[misc]
+                for task in tasks
+            ],
+            cls.collection,
+            "id",
+        )
+
     def dump(self) -> TaskDump:
         """Deserialize the task."""
         fields = ["id", "project", "title", "number", "description"]
@@ -332,7 +343,7 @@ class Task(BaseContext):
     ) -> list[Self]:
         """List all tasks in the database."""
         tasks: list[Self] = []
-        for task in storage.all(
+        for task in storage.get_many(
             cls.collection, limit=limit, skip=skip, only=only, **query
         ):
             tasks.append(cls(**task, projection=only))
