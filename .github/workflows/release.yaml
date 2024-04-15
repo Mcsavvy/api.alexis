@@ -1,4 +1,4 @@
-name: Build And Upload Extension
+name: Release New Version
 
 on:
   push:
@@ -23,6 +23,7 @@ jobs:
           args: --current --strip all
         env:
           OUTPUT: release_notes.md
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -33,5 +34,16 @@ jobs:
           body_path: release_notes.md
           draft: false
           prerelease: false
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        with:
+          environment: production
+
+    
 
 
