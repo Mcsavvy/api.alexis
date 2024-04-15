@@ -35,6 +35,12 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Get Release Version
+        id: get_release_version
+        run: echo ::set-output name=version::${CURRENT_TAG//v}
+        env:
+          CURRENT_TAG: ${{ github.ref_name }}
+
       - name: Create Sentry release
         uses: getsentry/action-release@v1
         env:
@@ -43,6 +49,8 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         with:
           environment: production
+          # get the tag name but remove the v prefix
+          version: ${{ steps.get_release_version.outputs.version }}
 
     
 
