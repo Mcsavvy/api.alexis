@@ -142,13 +142,7 @@ class Project(BaseContext):
             raise ContextNotFound(f"Project('{id}') not found.")
         tasks = []
         if "tasks" not in excluded_fields:
-            for task_id in project["tasks"]:
-                try:
-                    task = Task.load(task_id, project=id)
-                except ContextNotFound:
-                    task = None
-                if task is not None:
-                    tasks.append(task)
+            tasks.extend(Task.all(project=id, id={"$in": project["tasks"]}))
         project["tasks"] = tasks
         return cls(**project, projection=only)
 

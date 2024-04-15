@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6] - 2024-04-15
+
+### 🚜 Refactor
+
+- Simplify task loading in Project class
+
 ## [0.2.5] - 2024-04-15
 
 ### ⚙️  Miscellaneous Tasks
