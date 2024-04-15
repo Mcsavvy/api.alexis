@@ -2,9 +2,10 @@
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from operator import itemgetter
 from typing import Any
 
-from pymongo import MongoClient
+from pymongo import InsertOne, MongoClient, UpdateOne
 from redis import Redis
 
 from alexis.config import settings
@@ -49,8 +50,7 @@ class Storage(ABC):
     ) -> Iterable[Any]:
         """Get the ids of all objects in the storage."""
 
-    @abstractmethod
-    def all(
+    def get_many(
         self,
         collection: str,
         limit: int | None = None,
@@ -58,7 +58,21 @@ class Storage(ABC):
         only: Projection = None,
         **query,
     ) -> Iterable[dict]:
-        """Get all objects from the storage."""
+        """Get multiple objects from the storage."""
+        for id in self.object_ids(collection, limit, skip, **query):
+            obj = self.get(collection, id, only)
+            if obj:
+                yield obj
+
+    def set_many(self, objs: list[dict], collection: str, id_key: str) -> None:
+        """Set multiple objects in the storage."""
+        for obj in objs:
+            self.set(obj, collection, obj[id_key])
+
+    def delete_many(self, collection: str, ids: list[Any]) -> None:
+        """Delete multiple objects from the storage."""
+        for id in ids:
+            self.delete(collection, id)
 
 
 class InMemoryStorage(Storage):
@@ -86,7 +100,7 @@ class InMemoryStorage(Storage):
         """Get an object from the storage."""
         if id is not None:
             return self._storage.get(f"{collection}:{id}")
-        for obj in self.all(collection, **query):
+        for obj in self.get_many(collection, **query):
             return self._apply_projection(obj, only)
         return None
 
@@ -114,7 +128,7 @@ class InMemoryStorage(Storage):
                     continue
                 yield _(key).split(":")[-1]
 
-    def all(
+    def get_many(
         self,
         collection: str,
         limit: int | None = None,
@@ -170,7 +184,7 @@ class RedisHashStorage(Storage):
             key = self._get_key(collection, id)
             return self._get_object(key) or None
 
-        for obj in self.all(collection, **query):
+        for obj in self.get_many(collection, **query):
             return self._apply_projection(obj, only)
         return None
 
@@ -203,7 +217,7 @@ class RedisHashStorage(Storage):
                 continue
             yield _(key).split(":")[-1]
 
-    def all(
+    def get_many(
         self,
         collection: str,
         limit: int | None = None,
@@ -282,7 +296,7 @@ class MongoStorage(Storage):
         for obj in db_query:
             yield obj["_id"]
 
-    def all(
+    def get_many(
         self,
         collection: str,
         limit: int | None = None,
@@ -299,6 +313,34 @@ class MongoStorage(Storage):
         for obj in db_query:
             obj.pop("_id", None)
             yield obj
+
+    def set_many(self, objs: list[dict], collection: str, id_key: str) -> None:
+        """Set multiple objects in the storage."""
+        create_queue: list[dict] = []
+        update_queue: list[dict] = []
+        existing_objects_ids: list[int] = []
+        getid = itemgetter(id_key)
+        for id in self.object_ids(
+            collection, _id={"$in": list(map(getid, objs))}
+        ):
+            existing_objects_ids.append(id)
+        for obj in objs:
+            obj_id = getid(obj)
+            if obj_id in existing_objects_ids:
+                update_queue.append(obj | {"_id": obj_id})
+            else:
+                create_queue.append(obj | {"_id": obj_id})
+        mongo_db[collection].bulk_write(
+            [
+                UpdateOne({"_id": getid(obj)}, {"$set": obj}, upsert=True)
+                for obj in update_queue
+            ]
+            + [InsertOne(obj) for obj in create_queue]
+        )
+
+    def delete_many(self, collection: str, ids: list[Any]) -> None:
+        """Delete multiple objects from the storage."""
+        mongo_db[collection].delete_many({"_id": {"$in": ids}})
 
 
 DefaultStorageClass: type[Storage] = load_entry_point(settings.DEFAULT_STORAGE)
