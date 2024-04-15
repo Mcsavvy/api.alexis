@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7] - 2024-04-15
+
+### ⚙️  Miscellaneous Tasks
+
+- Add step to get release version
+
 ## [0.2.6] - 2024-04-15
 
 ### 🚜 Refactor
