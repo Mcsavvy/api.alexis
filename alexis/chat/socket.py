@@ -125,7 +125,7 @@ async def query(sid: str, data: dict):
             id=payload.thread_id,
             title=title,
             user=user,
-            project_id=payload.project_id,
+            project=payload.project_id,
         )
     logging.debug("Thread ID: %s", payload.thread_id.hex[:8])
     logging.debug("Query ID: %s", query_id[:8])
