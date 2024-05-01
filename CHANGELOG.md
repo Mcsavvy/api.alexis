@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2024-05-01
+
+### 🐛 Bug Fixes
+
+- Fix serialization of thread.created_at
+
 ## [0.3.3] - 2024-05-01
 
 ### 🚜 Refactor

@@ -145,7 +145,7 @@ async def query(sid: str, data: dict):
         {
             "thread_id": thread.uid,
             "thread_title": thread.title,
-            "thread_created_at": thread.created_at,
+            "thread_created_at": thread.created_at.isoformat(),
             "thread_description": thread.description,
             "query_id": query_id,
             "response_id": response_id,
