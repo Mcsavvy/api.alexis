@@ -48,7 +48,7 @@ class Thread(BaseDocument):
     meta = BaseDocumentMeta | {
         "collection": "threads",
     }
-    title: str = StringField(max_length=80, required=True)
+    title: str = StringField(max_length=100, required=True)
     project: int = IntField(required=True)
     user: User = ReferenceField(
         User, required=True, reverse_delete_rule=CASCADE
