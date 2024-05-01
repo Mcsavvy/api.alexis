@@ -73,6 +73,8 @@ class ThreadSchema(BaseModel):
     id: UUID
     title: str
     project: int
+    description: str
+    created_at: str
 
     class Config:
         """Pydantic config."""
