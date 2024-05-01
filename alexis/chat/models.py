@@ -90,6 +90,11 @@ class Thread(BaseDocument):
         """Get the last chat in the thread."""
         return self.chats.filter(next_chat=None).one()
 
+    @property
+    def description(self) -> str:
+        """Get the description of the thread."""
+        return self.last_chat.content if self.last_chat else ""
+
     @classmethod
     def create(cls, commit: bool = True, **kwargs):
         """Create a thread."""
