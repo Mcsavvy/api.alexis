@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2024-05-01
+
+### 🐛 Bug Fixes
+
+- Fix CreateError 'project is required'
+
 ## [0.3.1] - 2024-05-01
 
 ### 🐛 Bug Fixes
