@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2024-05-01
+
+### 🚜 Refactor
+
+- Add thread desc & created_at in emit
+
 ## [0.3.2] - 2024-05-01
 
 ### 🐛 Bug Fixes
