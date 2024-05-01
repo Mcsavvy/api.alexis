@@ -13,6 +13,7 @@ from alexis.components.contexts import (
     preprocess_project,
 )
 from alexis.models import User
+from datetime import datetime
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 project = APIRouter(prefix="/project", tags=["project"])
@@ -74,7 +75,7 @@ class ThreadSchema(BaseModel):
     title: str
     project: int
     description: str
-    created_at: str
+    created_at: datetime
 
     class Config:
         """Pydantic config."""
