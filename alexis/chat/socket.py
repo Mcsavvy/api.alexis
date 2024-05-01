@@ -3,13 +3,13 @@ from typing import Any, TypedDict
 from uuid import UUID, uuid4
 
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field
 
 from alexis import logging
-from alexis.auth.models.user import User
 from alexis.chat.chains import AlexisChain
 from alexis.chat.models import Thread
 from alexis.components.socketio import SocketIOEnviron, sio
+from alexis.models import User
 
 
 async def _make_config(
@@ -68,23 +68,9 @@ class QueryPayload(BaseModel):
     """Query payload."""
 
     query: str
-    project_id: int
+    project_id: int = 0
     user_id: UUID
-    thread_id: UUID = None  # type: ignore
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_thread_id(cls, data: dict):
-        """Validate the thread ID."""
-        if not data.get("thread_id"):
-            if not data.get("project_id"):
-                raise ValueError(
-                    "Either thread_id or project_id must be provided"
-                )
-            user = User.objects.get(data["user_id"])
-            thread = Thread.create(project=int(data["project_id"]), user=user)
-            data["thread_id"] = thread.id
-        return data
+    thread_id: UUID = Field(default_factory=uuid4)
 
 
 @sio.on("connect")
@@ -120,17 +106,27 @@ async def query(sid: str, data: dict):
         query: str
 
     session: SessionData = await sio.get_session(sid)
-    user = session["user_id"]
-    project = session["project"]
+    data.setdefault("user_id", session["user_id"])
+    data.setdefault("project_id", session["project"])
 
     logging.info(
         "Query from user '%s' in connection '%s' using project '%s'",
-        user[:8],
+        data["user_id"][:8],
         sid,
-        project,
+        data["project_id"],
     )
-    payload = QueryPayload(**data, user_id=user, project_id=project)  # type: ignore[arg-type]
+    payload = QueryPayload(**data)  # type: ignore[arg-type]
     query_id, response_id = str(uuid4()), str(uuid4())
+    # create thread if it doesn't exist
+    if not Thread.objects.filter(id=payload.thread_id).count():
+        title = payload.query.split("\n")[0][:100]
+        user = User.objects.get(payload.user_id)
+        Thread.create(
+            id=payload.thread_id,
+            title=title,
+            user=user,
+            project_id=payload.project_id,
+        )
     logging.debug("Thread ID: %s", payload.thread_id.hex[:8])
     logging.debug("Query ID: %s", query_id[:8])
     logging.debug("Response ID: %s", response_id[:8])

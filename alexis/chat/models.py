@@ -48,7 +48,7 @@ class Thread(BaseDocument):
     meta = BaseDocumentMeta | {
         "collection": "threads",
     }
-    title: str = StringField(max_length=80, required=True)
+    title: str = StringField(max_length=100, required=True)
     project: int = IntField(required=True)
     user: User = ReferenceField(
         User, required=True, reverse_delete_rule=CASCADE
@@ -89,6 +89,11 @@ class Thread(BaseDocument):
     def last_chat(self) -> Chat | None:
         """Get the last chat in the thread."""
         return self.chats.filter(next_chat=None).one()
+
+    @property
+    def description(self) -> str:
+        """Get the description of the thread."""
+        return self.last_chat.content if self.last_chat else ""
 
     @classmethod
     def create(cls, commit: bool = True, **kwargs):

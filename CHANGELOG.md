@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-05-01
+
+### 🚀 Features
+
+- Add description to thread schema
+
+### 🚜 Refactor
+
+- Use first chat as thread title
+
+### ⚙️  Miscellaneous Tasks
+
+- Increase length of thread name
+
 ## [0.2.7] - 2024-04-15
 
 ### ⚙️  Miscellaneous Tasks
