@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-05-01
+
+### 🚀 Features
+
+- Add route for deleting and updating threads
+
 ## [0.3.4] - 2024-05-01
 
 ### 🐛 Bug Fixes
