@@ -90,6 +90,12 @@ class ThreadCreateSchema(BaseModel):
     title: str | None = None
 
 
+class ThreadUpdateSchema(BaseModel):
+    """Thread update schema."""
+
+    title: str
+
+
 class ChatMessageSchema(BaseModel):
     """Chat message schema."""
 
@@ -146,6 +152,34 @@ async def create_thread(
     )
     return thread
 
+@router.delete("/threads/{thread_id}")
+async def delete_thread(
+    thread_id: UUID, user: User = Depends(is_authenticated)
+):
+    """Delete a thread."""
+    try:
+        thread = Thread.objects.get(thread_id)
+    except Thread.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if thread.user.id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    thread.delete()
+    return Response(status_code=204)
+
+
+@router.patch("/threads/{thread_id}", response_model=ThreadSchema)
+async def update_thread(
+    thread_id: UUID, body: ThreadUpdateSchema, user: User = Depends(is_authenticated)
+):
+    """Update a thread."""
+    try:
+        thread = Thread.objects.get(thread_id)
+    except Thread.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if thread.user.id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    thread.update(**body.model_dump(), commit=True)
+    return thread
 
 @router.get(
     "/threads/{thread_id}/messages", response_model=list[ChatMessageSchema]
